@@ -11,6 +11,22 @@
   :root{
     --purple:#03045E; --purple-dark:#020340; --red:#D9534F; --amber:#E0A030; --green:#4CAF6D;
     --ink:#222; --muted:#767676; --bg:#E8F5F8; --card:#FFFFFF; --border:#E4DEEE; --tint:#DCEFF3;
+    /* Three-level type scale, used across every screen — see the comment above
+       body{} below for how the levels are meant to be used. */
+    --fs-title:18px; --fw-title:700;
+    --fs-text:15px; --fw-text:400;
+    --fs-subtext:13px; --fw-subtext:400;
+    /* A handful of things intentionally sit outside the 3-level scale above:
+       small uppercase "eyebrow" labels (category dividers, badges) share their
+       own consistent size instead of Subtext's reading size; the Digital
+       Flashcards front/back word display, its round advance button, and the
+       session-result numbers are large by design, not paragraph text; icon
+       glyphs (chevrons, the info "i", the speaker button) are sized for the
+       glyph, not for reading; the bottom tab bar keeps a smaller label so five
+       tabs fit one row without wrapping; and the printed-flashcards stylesheet
+       (@media print) is a different medium with its own point sizes for
+       cutting/folding physical cards. */
+    --fs-eyebrow:12px;
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
@@ -20,8 +36,12 @@
      does have a scrollbar (Vocab, Settings) — since main{margin:0 auto} centers in
      whatever width is left, the short page's content visibly sits further right. */
   html{overflow-y:scroll; scrollbar-gutter:stable;}
+  /* Type scale: Title (18px/700) for page and card/section headings, Text
+     (15px/400) for body copy and this baseline, Subtext (13px/400) for
+     captions and secondary labels — see the exceptions noted in :root above. */
   body{
     font-family:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+    font-size:var(--fs-text); font-weight:var(--fw-text);
     background:var(--bg); color:var(--ink); padding-bottom:76px;
     -webkit-tap-highlight-color: transparent;
   }
@@ -35,27 +55,39 @@
     background:linear-gradient(to right, #0055A4 0 33.34%, #fff 33.34% 66.67%, #EF4135 66.67% 100%);
     box-shadow:0 0 0 2px rgba(255,255,255,.55);
   }
-  header h1{font-size:18px; margin:0; font-weight:700; flex:1;}
+  header h1{font-size:var(--fs-title); margin:0; font-weight:var(--fw-title); flex:1;}
   .teacher-badge{
     display:inline-block; margin-top:8px; background:#fff; color:var(--purple);
-    font-size:11px; font-weight:800; letter-spacing:.03em; text-transform:uppercase;
+    font-size:var(--fs-eyebrow); font-weight:800; letter-spacing:.03em; text-transform:uppercase;
     padding:4px 10px; border-radius:20px;
   }
-  header button.back{background:rgba(255,255,255,.15); color:#fff; border:none; border-radius:10px; padding:8px 12px; font-size:15px;}
+  header button.back{background:rgba(255,255,255,.15); color:#fff; border:none; border-radius:10px; padding:8px 12px; font-size:var(--fs-text);}
+  .info-btn{
+    width:28px; height:28px; flex-shrink:0; padding:0; margin-left:6px;
+    border:1.5px solid rgba(255,255,255,.7); border-radius:50%; background:rgba(255,255,255,.12);
+    color:#fff; font-family:Georgia,'Times New Roman',serif; font-style:italic; font-weight:700; font-size:15px;
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+  }
+  .info-btn:active{background:rgba(255,255,255,.3);}
   main{padding:14px; max-width:640px; margin:0 auto;}
   .card{background:var(--card); border:1px solid var(--border); border-radius:14px; padding:14px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,.04);}
+  /* Every card's lead-in "<b>Some label</b>" (dozens of them, across every
+     screen) is a section title — give it Title styling in one place instead
+     of relying on the browser's default bold size, which is what made card
+     titles look like a random, slightly-off size before. */
+  .card > b:first-child{font-size:var(--fs-title); font-weight:var(--fw-title);}
   .tile{
     display:flex; align-items:center; justify-content:space-between; gap:10px;
     background:var(--card); border:1px solid var(--border); border-radius:14px; padding:16px;
-    margin-bottom:10px; font-size:15px; font-weight:600; color:var(--ink); cursor:pointer;
+    margin-bottom:10px; font-size:var(--fs-title); font-weight:var(--fw-title); color:var(--ink); cursor:pointer;
   }
   .tile:active{background:var(--tint);}
-  .tile .sub{font-size:12px; color:var(--muted); font-weight:400; margin-top:3px;}
+  .tile .sub{font-size:var(--fs-subtext); color:var(--muted); font-weight:var(--fw-subtext); margin-top:3px;}
   .tile .chev{color:var(--purple); font-size:20px;}
   .pill-row{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;}
   .pill{
     flex:1; min-width:150px; text-align:center; padding:10px 8px; border-radius:12px;
-    font-weight:700; font-size:13px; border:2px solid var(--purple); color:var(--purple); background:#fff;
+    font-weight:700; font-size:var(--fs-text); border:2px solid var(--purple); color:var(--purple); background:#fff;
   }
   .pill.on{background:var(--purple); color:#fff;}
   .pill.on.r{background:var(--red); border-color:var(--red);}
@@ -64,27 +96,27 @@
   .accent-row{display:flex; gap:6px; flex-wrap:wrap;}
   .accent-btn{
     width:34px; height:34px; padding:0; border-radius:8px; border:2px solid var(--purple);
-    background:#fff; color:var(--purple); font-weight:700; font-size:15px; line-height:1;
+    background:#fff; color:var(--purple); font-weight:700; font-size:var(--fs-text); line-height:1;
   }
   .accent-btn:active{background:var(--purple); color:#fff;}
   .q10-item{display:flex; gap:8px; align-items:flex-start; margin-bottom:8px;}
-  .q10-num{flex-shrink:0; width:20px; padding-top:12px; font-weight:800; color:var(--purple); font-size:13px;}
+  .q10-num{flex-shrink:0; width:20px; padding-top:12px; font-weight:800; color:var(--purple); font-size:var(--fs-subtext);}
   .q10-card{flex:1; min-width:0;}
   .q10-card .word{margin-bottom:0;}
   .segmented{display:flex; background:var(--tint); border-radius:12px; padding:4px; margin-bottom:12px;}
-  .segmented button{flex:1; border:none; background:transparent; padding:10px; border-radius:9px; font-weight:700; color:var(--purple); font-size:14px;}
+  .segmented button{flex:1; border:none; background:transparent; padding:10px; border-radius:9px; font-weight:700; color:var(--purple); font-size:var(--fs-text);}
   .segmented button.active{background:var(--purple); color:#fff;}
-  .cathead{font-weight:800; color:var(--purple); font-size:12px; letter-spacing:.06em; text-transform:uppercase; margin:16px 2px 6px;}
-  .tier-heading{display:inline-block; font-weight:800; color:#fff; background:var(--purple); font-size:12px; letter-spacing:.06em; text-transform:uppercase; padding:6px 14px; border-radius:20px; margin:18px 0 8px;}
+  .cathead{font-weight:800; color:var(--purple); font-size:var(--fs-eyebrow); letter-spacing:.06em; text-transform:uppercase; margin:16px 2px 6px;}
+  .tier-heading{display:inline-block; font-weight:800; color:#fff; background:var(--purple); font-size:var(--fs-eyebrow); letter-spacing:.06em; text-transform:uppercase; padding:6px 14px; border-radius:20px; margin:18px 0 8px;}
   .tier-heading:first-child{margin-top:0;}
   .word{background:var(--card); border:1px solid var(--border); border-radius:12px; padding:10px 12px; margin-bottom:8px;}
   .wrow{display:flex; align-items:center; justify-content:space-between; gap:10px;}
   .wtext{flex:1; min-width:0;}
   .word .fr, .word .en{line-height:1.3; overflow-wrap:break-word;}
-  .word .fr{font-weight:700; font-size:15px;}
-  .word .en{font-style:italic; font-weight:400; color:#555; font-size:13px; margin-top:2px;}
+  .word .fr{font-weight:700; font-size:var(--fs-text);}
+  .word .en{font-style:italic; font-weight:400; color:#555; font-size:var(--fs-subtext); margin-top:2px;}
   .lang-hidden{color:transparent !important; text-shadow:0 0 7px rgba(0,0,0,.35) !important; user-select:none;}
-  .word .note{font-size:11px; color:var(--muted); margin-top:6px;}
+  .word .note{font-size:var(--fs-subtext); color:var(--muted); margin-top:6px;}
   .rag{display:flex; gap:7px; flex-shrink:0;}
   .rag button{
     width:26px; height:26px; padding:0; border-radius:50%; border:2px solid transparent;
@@ -93,14 +125,14 @@
   .rag button.r{background:var(--red);} .rag button.a{background:var(--amber);} .rag button.g{background:var(--green);}
   .rag button.sel{opacity:1; border-color:#222; box-shadow:0 0 0 2px #fff inset;}
   .rag button.locked{opacity:.55; pointer-events:none;}
-  .add-btn{flex-shrink:0; background:#fff; color:var(--purple); border:2px solid var(--purple); border-radius:10px; padding:8px 14px; font-weight:800; font-size:13px;}
+  .add-btn{flex-shrink:0; background:#fff; color:var(--purple); border:2px solid var(--purple); border-radius:10px; padding:8px 14px; font-weight:800; font-size:var(--fs-text);}
   .add-btn.on{background:var(--green); border-color:var(--green); color:#fff;}
   .frRow{display:flex; align-items:center; gap:6px;}
   .spk{background:none; border:none; color:var(--purple); font-size:15px; padding:2px 5px; flex-shrink:0; line-height:1;}
   .spk:active{opacity:.5;}
   #searchResults .word .note{color:var(--purple); font-weight:600;}
-  input[type=file]{width:100%; font-size:13px; padding:8px 0;}
-  .dc-progress-row{display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; font-size:13px; font-weight:700; color:var(--purple);}
+  input[type=file]{width:100%; font-size:var(--fs-subtext); padding:8px 0;}
+  .dc-progress-row{display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; font-size:var(--fs-subtext); font-weight:700; color:var(--purple);}
   .dc-progress-track{height:6px; background:var(--border); border-radius:4px; overflow:hidden; margin-bottom:20px;}
   .dc-progress-fill{height:100%; background:var(--purple); border-radius:4px; transition:width .25s ease;}
   .dc-card{
@@ -108,17 +140,17 @@
     box-shadow:0 4px 16px rgba(3,4,94,.10); padding:36px 22px; text-align:center;
     cursor:pointer; -webkit-tap-highlight-color:transparent;
   }
-  .dc-prompt{font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); font-weight:700; margin-bottom:14px;}
-  .dc-front{font-size:28px; color:var(--ink); line-height:1.25; overflow-wrap:break-word;}
-  .dc-tap-hint{margin-top:22px; font-size:13px; color:var(--purple); font-weight:600;}
+  .dc-prompt{font-size:var(--fs-eyebrow); text-transform:uppercase; letter-spacing:.06em; color:var(--muted); font-weight:700; margin-bottom:14px;}
+  .dc-front{font-size:28px; color:var(--ink); line-height:1.25; overflow-wrap:break-word;} /* the flashcard word itself — deliberately large, see :root note */
+  .dc-tap-hint{margin-top:22px; font-size:var(--fs-text); color:var(--purple); font-weight:600;}
   .dc-divider{height:1px; background:var(--border); margin:22px 0;}
-  .dc-back{font-size:22px; color:#444; line-height:1.3; overflow-wrap:break-word;}
+  .dc-back{font-size:22px; color:#444; line-height:1.3; overflow-wrap:break-word;} /* the flashcard answer — same reasoning as .dc-front */
   .dc-fr{font-weight:800; font-style:normal;}
   .dc-en{font-weight:400; font-style:italic;}
   .dc-rag-row{display:flex; gap:10px; margin-top:26px;}
   .dc-rag-row button{
     flex:1; padding:12px 6px; border-radius:12px; border:2px solid transparent; background:var(--tint);
-    font-weight:700; font-size:13px; color:var(--ink); display:flex; flex-direction:column; align-items:center; gap:6px;
+    font-weight:700; font-size:var(--fs-text); color:var(--ink); display:flex; flex-direction:column; align-items:center; gap:6px;
   }
   .dc-rag-row button .dot{width:20px; height:20px; border-radius:50%;}
   .dc-rag-row button.r .dot{background:var(--red);} .dc-rag-row button.a .dot{background:var(--amber);} .dc-rag-row button.g .dot{background:var(--green);}
@@ -131,19 +163,19 @@
     display:flex; align-items:center; justify-content:center; font-size:24px; font-weight:800;
     box-shadow:0 3px 10px rgba(3,4,94,.25);
   }
-  .dc-next-label{margin-top:8px; font-size:12px; color:var(--muted); font-weight:600;}
+  .dc-next-label{margin-top:8px; font-size:var(--fs-subtext); color:var(--muted); font-weight:600;}
   .dc-nav-row{display:flex; justify-content:space-between; align-items:center; margin-top:22px;}
-  .dc-nav-row button{background:none; border:none; color:var(--purple); font-weight:700; font-size:14px; padding:8px 4px;}
+  .dc-nav-row button{background:none; border:none; color:var(--purple); font-weight:700; font-size:var(--fs-text); padding:8px 4px;}
   .dc-nav-row button:disabled{color:var(--border); pointer-events:none;}
   .dc-nav-row .skip{color:var(--muted); font-weight:600;}
   .dc-finish{background:var(--card); border:1px solid var(--border); border-radius:16px; padding:26px 20px; text-align:center;}
-  .dc-finish h2{margin:0 0 6px; color:var(--purple);}
+  .dc-finish h2{margin:0 0 6px; color:var(--purple); font-size:var(--fs-title);}
   .dc-breakdown{display:flex; justify-content:center; gap:18px; margin:18px 0;}
-  .dc-breakdown div{text-align:center; font-weight:700; font-size:20px;}
-  .dc-breakdown div span{display:block; font-size:11px; font-weight:600; color:var(--muted); text-transform:uppercase; margin-top:2px;}
+  .dc-breakdown div{text-align:center; font-weight:700; font-size:20px;} /* session result counts — a stat display, not body text */
+  .dc-breakdown div span{display:block; font-size:var(--fs-eyebrow); font-weight:600; color:var(--muted); text-transform:uppercase; margin-top:2px;}
   .dc-breakdown .r{color:var(--red);} .dc-breakdown .a{color:var(--amber);} .dc-breakdown .g{color:var(--green);}
   .dc-finish-actions{display:flex; gap:10px; margin-top:18px;}
-  .dc-finish-actions button{flex:1; padding:13px; border-radius:12px; border:2px solid var(--purple); font-weight:700; font-size:14px;}
+  .dc-finish-actions button{flex:1; padding:13px; border-radius:12px; border:2px solid var(--purple); font-weight:700; font-size:var(--fs-text);}
   .dc-finish-actions .primary{background:var(--purple); color:#fff;}
   .dc-finish-actions .secondary{background:#fff; color:var(--purple);}
   #printArea{display:none;}
@@ -170,29 +202,29 @@
   }
   .conj-section{margin-top:18px;}
   .conj-section:first-of-type{margin-top:10px;}
-  .conj-title{font-weight:800; color:var(--purple); font-size:13px; letter-spacing:.04em; text-transform:uppercase; margin-bottom:8px;}
+  .conj-title{font-weight:800; color:var(--purple); font-size:var(--fs-eyebrow); letter-spacing:.04em; text-transform:uppercase; margin-bottom:8px;}
   .conj-title .sub{font-weight:400; text-transform:none; letter-spacing:0; color:var(--muted); font-style:italic;}
   .conj-grid{display:grid; grid-template-columns:1fr 1fr; gap:6px 10px;}
-  .conj-cell{display:flex; flex-direction:column; gap:2px; background:var(--tint); border:1px solid var(--border); border-radius:10px; padding:8px 10px; font-size:14px;}
+  .conj-cell{display:flex; flex-direction:column; gap:2px; background:var(--tint); border:1px solid var(--border); border-radius:10px; padding:8px 10px; font-size:var(--fs-text);}
   .conj-fr{display:flex; align-items:center; justify-content:space-between; gap:6px; font-weight:600;}
-  .conj-en{color:var(--muted); font-size:12px; font-style:italic; line-height:1.3;}
+  .conj-en{color:var(--muted); font-size:var(--fs-subtext); font-style:italic; line-height:1.3;}
   @media (max-width:380px){ .conj-grid{grid-template-columns:1fr;} }
   .higher-toggle-row{display:flex; align-items:center; justify-content:space-between; background:var(--tint); border:1px solid var(--border); border-radius:12px; padding:10px 12px; margin:14px 0 6px;}
-  .higher-toggle-row b{color:var(--purple); font-size:13px;}
+  .higher-toggle-row b{color:var(--purple); font-size:var(--fs-text);}
   .switch{position:relative; width:52px; height:30px; background:#ccc; border-radius:20px; flex-shrink:0;}
   .switch.on{background:var(--green);}
   .switch .knob{position:absolute; top:3px; left:3px; width:24px; height:24px; background:#fff; border-radius:50%; transition:left .15s;}
   .switch.on .knob{left:25px;}
   .hidden-section{display:none;}
-  .btn{display:block; width:100%; text-align:center; background:var(--purple); color:#fff; border:none; border-radius:12px; padding:14px; font-weight:800; font-size:15px; margin-top:6px;}
+  .btn{display:block; width:100%; text-align:center; background:var(--purple); color:#fff; border:none; border-radius:12px; padding:14px; font-weight:800; font-size:var(--fs-text); margin-top:6px;}
   .btn.secondary{background:#fff; color:var(--purple); border:2px solid var(--purple);}
-  .btn.big{font-size:17px; padding:18px;}
+  .btn.big{font-size:var(--fs-title); padding:18px;}
   .btn-row{display:flex; gap:10px; margin-top:6px;}
   .btn-row .btn{flex:1; margin-top:0;}
   .saved-list-tile{display:flex; align-items:center; justify-content:space-between; gap:10px;}
   .del{flex-shrink:0; background:none; border:none; color:var(--red); font-weight:800; font-size:18px; padding:4px 8px; line-height:1;}
-  textarea, input[type=text]{width:100%; border:2px solid var(--border); border-radius:10px; padding:10px; font-size:14px; font-family:inherit;}
-  .muted{color:var(--muted); font-size:13px; line-height:1.5;}
+  textarea, input[type=text]{width:100%; border:2px solid var(--border); border-radius:10px; padding:10px; font-size:var(--fs-text); font-family:inherit;}
+  .muted{color:var(--muted); font-size:var(--fs-subtext); line-height:1.5;}
   .qr-wrap{display:flex; justify-content:center; margin:14px 0;}
   .qr-wrap svg{background:#fff; padding:10px; border-radius:12px; border:1px solid var(--border);}
   nav.tabbar{
@@ -200,10 +232,27 @@
     display:flex; padding:6px 4px calc(6px + env(safe-area-inset-bottom));
     box-shadow:0 -2px 8px rgba(0,0,0,.06); z-index:10;
   }
-  nav.tabbar button{flex:1; background:none; border:none; padding:8px 2px; font-size:11px; font-weight:700; color:var(--muted); display:flex; flex-direction:column; align-items:center; gap:3px;}
+  nav.tabbar button{flex:1; background:none; border:none; padding:8px 2px; font-size:11px; font-weight:700; color:var(--muted); display:flex; flex-direction:column; align-items:center; gap:3px;} /* kept small on purpose — 5 tabs, fixed width, no room to grow without wrapping */
   nav.tabbar button .ic{font-size:20px;}
   nav.tabbar button.active{color:var(--purple);}
-  .banner{background:#FFF3CD; border:1px solid #FFE69C; color:#664D03; font-size:12px; padding:8px 10px; border-radius:10px; margin-bottom:12px;}
+  .banner{background:#FFF3CD; border:1px solid #FFE69C; color:#664D03; font-size:var(--fs-subtext); padding:8px 10px; border-radius:10px; margin-bottom:12px;}
+  .info-modal-overlay{
+    display:none; position:fixed; inset:0; background:rgba(2,3,64,.55); z-index:50;
+    align-items:center; justify-content:center; padding:20px;
+  }
+  .info-modal-box{
+    position:relative; background:var(--card); border-radius:16px; padding:22px 20px 18px;
+    max-width:440px; width:100%; max-height:80vh; overflow-y:auto; box-shadow:0 8px 30px rgba(0,0,0,.25);
+  }
+  .info-modal-box h3{margin:0 12px 10px 0; color:var(--purple); font-size:var(--fs-title);}
+  .info-modal-box p{margin:0 0 12px; font-size:var(--fs-text); line-height:1.55; color:var(--ink);}
+  .info-modal-box p:last-child{margin-bottom:0;}
+  .info-modal-close{
+    position:absolute; top:12px; right:12px; width:30px; height:30px; border-radius:50%;
+    border:none; background:var(--tint); color:var(--purple); font-size:18px; font-weight:700;
+    line-height:1; cursor:pointer;
+  }
+  .info-modal-close:active{background:var(--purple); color:#fff;}
   .progress-bar{height:8px; background:var(--tint); border-radius:6px; overflow:hidden; display:flex; margin-top:6px;}
   .progress-bar span{height:100%;}
   a{color:var(--purple);}
@@ -215,10 +264,17 @@
     <span class="flag-icon" aria-hidden="true"></span>
     <button class="back" id="backBtn" style="display:none;">&larr;</button>
     <h1 id="pageTitle">GCSE French Vocab Audit</h1>
+    <button id="infoBtn" class="info-btn" style="display:none;" aria-label="Page information">i</button>
   </div>
   <div id="teacherBadge" class="teacher-badge" style="display:none;">&#128105;&#8205;&#127979; Teacher account</div>
 </header>
 <main id="app"></main>
+<div id="infoModalOverlay" class="info-modal-overlay">
+  <div class="info-modal-box">
+    <button id="infoModalClose" class="info-modal-close" aria-label="Close">&times;</button>
+    <div id="infoModalBody"></div>
+  </div>
+</div>
 <nav class="tabbar">
   <button data-route="home"><span class="ic">&#128213;</span>Vocab</button>
   <button data-route="verbs"><span class="ic">&#128216;</span>Verbs</button>
@@ -2684,6 +2740,24 @@ var titleEl = document.getElementById("pageTitle");
 var backBtn = document.getElementById("backBtn");
 var teacherBadgeEl = document.getElementById("teacherBadge");
 
+// ---------- info button + popup (per-page "i" icon in the header) ----------
+var infoBtn = document.getElementById("infoBtn");
+var infoModalOverlay = document.getElementById("infoModalOverlay");
+var infoModalBody = document.getElementById("infoModalBody");
+function showInfoModal(){ infoModalOverlay.style.display = "flex"; }
+function hideInfoModal(){ infoModalOverlay.style.display = "none"; }
+document.getElementById("infoModalClose").addEventListener("click", hideInfoModal);
+infoModalOverlay.addEventListener("click", function(e){ if(e.target === infoModalOverlay) hideInfoModal(); });
+function setInfoButton(html){
+  infoModalBody.innerHTML = html;
+  infoBtn.style.display = "";
+  infoBtn.onclick = showInfoModal;
+}
+function clearInfoButton(){
+  infoBtn.style.display = "none";
+  infoBtn.onclick = null;
+}
+
 function el(html){ var d=document.createElement("div"); d.innerHTML=html.trim(); return d.firstChild; }
 function esc(s){ return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;"); }
 function normText(s){ return (s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[’']/g,""); }
@@ -2729,6 +2803,8 @@ function render(){
     b.classList.toggle("active", b.dataset.route===route.name);
   });
   backBtn.style.display = (route.name==="unit" || route.name==="personal" || route.name==="classes" || route.name==="teacherLists" || route.name==="teacherListView") ? "" : "none";
+  hideInfoModal();
+  clearInfoButton();
   app.innerHTML = "";
   if(route.name==="home") renderHome();
   else if(route.name==="unit") renderUnit(route.param);
@@ -2807,7 +2883,7 @@ function renderHome(){
   var searchCard = el(
     '<div class="card">'+
       '<b>Search all vocab</b>'+
-      '<input type="text" id="searchBox" placeholder="Type a French or English word..." style="margin-top:8px;">'+
+      '<input type="text" id="searchBox" placeholder="Type a French or English word..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="margin-top:8px;">'+
     '</div>'
   );
   app.appendChild(searchCard);
@@ -2844,7 +2920,7 @@ function renderHome(){
     var open = vocabOpenCategory === key;
     var header = el(
       '<div class="tile" style="cursor:pointer;">'+
-        '<div><div><b>'+esc(title)+'</b></div>'+(subtitle?'<div class="sub">'+esc(subtitle)+'</div>':'')+'</div>'+
+        '<div><div>'+esc(title)+'</div>'+(subtitle?'<div class="sub">'+esc(subtitle)+'</div>':'')+'</div>'+
         '<div class="chev">'+(open?'&#9662;':'&rsaquo;')+'</div>'+
       '</div>'
     );
@@ -2927,8 +3003,9 @@ function renderHome(){
 
   function doSearch(q){
     resultsWrap.innerHTML = "";
-    if(!q){ buildNormal(); normalWrap.style.display=""; return; }
+    if(!q){ buildNormal(); normalWrap.style.display=""; tierCard.style.display=""; return; }
     normalWrap.style.display = "none";
+    tierCard.style.display = "none";
     var nq = normText(q);
     var matches = Object.keys(WORD).filter(function(id){
       var w = WORD[id];
@@ -4827,7 +4904,7 @@ function renderFcCustomBuilder(){
   var searchCard = el(
     '<div class="card">'+
       '<b>Search all vocab</b>'+
-      '<input type="text" id="customSearchBox" placeholder="Type a French or English word..." style="margin-top:8px;">'+
+      '<input type="text" id="customSearchBox" placeholder="Type a French or English word..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="margin-top:8px;">'+
     '</div>'
   );
   app.appendChild(searchCard);
@@ -4938,8 +5015,14 @@ function renderFcCustomBuilder(){
   wizardBackRestart(fcSequence(), fcStepKey, function(){ fcCustom.mode="landing"; fcRerender(); }, fcRestartWizard);
 }
 
+var FLASHCARDS_INFO_HTML =
+  '<h3>Flashcards</h3>'+
+  '<p>Regular testing of vocabulary will make you more confident. Whether you are using Digital Flashcards on your phone, or generating a PDF of Printed Flashcards on a computer, regularly practising sets of vocabulary will have a big impact on your learning.</p>'+
+  '<p>If you are using Digital Flashcards, make sure you update your Red/Amber/Green ratings to update your vocab audit. If you are using Printed Flashcards, you will have to update your Red/Amber/Green ratings manually. The easiest way to do this is to search for the words on the search bar in the Vocab tab and change the colour for that word.</p>';
+
 function renderFlashcards(){
   titleEl.textContent = "Flashcards";
+  setInfoButton(FLASHCARDS_INFO_HTML);
   if(fcDigital.active){ renderDigitalSession(); return; }
   if(fcStepKey!=="mysets" && fcWizard.type!=="teacherlist" && fcStepKey!=="mode"){
     var tierLabel = state.showHigher ? "Foundation + Higher" : "Foundation";
@@ -5055,8 +5138,8 @@ function scheduleDigitalAdvance(delayMs){
 
 function renderDigitalSession(){
   app.appendChild(el(
-    '<div class="card" style="font-size:12px; color:var(--muted); line-height:1.5;">'+
-      '<b style="color:var(--purple);">Digital Flashcards</b><br>'+
+    '<div class="card" style="font-size:13px; color:var(--muted); line-height:1.5;">'+
+      '<b style="color:var(--purple); font-size:13px;">Digital Flashcards</b><br>'+
       fcSummaryLines().map(esc).join(' &middot; ')+
     '</div>'
   ));
@@ -5179,7 +5262,7 @@ function renderDigitalFinish(){
         '<div class="a">'+counts.A+'<span>Amber</span></div>'+
         '<div class="g">'+counts.G+'<span>Green</span></div>'+
       '</div>'+
-      '<div style="color:var(--muted); font-size:12px; margin-top:-8px; margin-bottom:4px;">'+ratedCount+' word'+(ratedCount===1?'':'s')+' rated this session</div>';
+      '<div style="color:var(--muted); font-size:13px; margin-top:-8px; margin-bottom:4px;">'+ratedCount+' word'+(ratedCount===1?'':'s')+' rated this session</div>';
   }
   html +=
     '<div class="dc-finish-actions">'+
@@ -27410,11 +27493,18 @@ function buildVerbSearchTokens(v){
 }
 VERBS.forEach(function(v){ v.searchTokens = buildVerbSearchTokens(v); });
 
+var VERB_INFO_HTML =
+  '<h3>Verb Conjugations</h3>'+
+  '<p>The Verb Conjugation tool allows you to search for an infinitive (e.g. <i>jouer</i>), a full conjugated verb (e.g. <i>je joue</i>) or part of a conjugated verb (e.g. <i>joues</i>).</p>'+
+  '<p><b>Writing tasks:</b> Use this tool to conjugate a verb to make sure the spelling of your verb matches the person who is doing the action. You can also use the tool to check you have conjugated a verb in the correct tense.</p>'+
+  '<p><b>Reading questions and translations:</b> If you recognise that there is a verb (because you see a pronoun like \'elle\'), but are unsure what the verb means, you can type the full conjugated verb (e.g. <i>elle lit</i>) into the search bar to help you to understand the verb.</p>'+
+  '<p>If you search for a verb, but it does not give you a result, then the verb is not included in the AQA vocabulary list. In this case, you may want to search on Google instead.</p>';
+
 function renderVerbs(){
   titleEl.textContent = "Verb Conjugations";
-  app.appendChild(el('<div class="banner">Search for a verb in French or English — the infinitive, a translation, or any conjugated form (e.g. \'jouer\', \'joues\', \'jouait\', \'I play\', \'we drank\') — or browse the list below. Covers every verb on the AQA GCSE French vocabulary list, Foundation and Higher.</div>'));
+  setInfoButton(VERB_INFO_HTML);
 
-  var searchCard = el('<div class="card"><input type="text" id="verbSearchBox" placeholder="French or English, e.g. jouer, joues, I play..."></div>');
+  var searchCard = el('<div class="card"><input type="text" id="verbSearchBox" placeholder="French or English, e.g. jouer, joues, I play..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></div>');
   app.appendChild(searchCard);
 
   var bodyWrap = el('<div id="verbBody"></div>');
@@ -27453,7 +27543,7 @@ function renderVerbs(){
       showList("");
     });
     bodyWrap.appendChild(backBtnEl);
-    bodyWrap.appendChild(el('<div class="card"><b style="font-size:18px;">'+esc(capitalize(v.infinitive))+'</b><div class="muted" style="margin-top:2px;">'+esc(v.english)+'</div></div>'));
+    bodyWrap.appendChild(el('<div class="card"><b>'+esc(capitalize(v.infinitive))+'</b><div class="muted" style="margin-top:2px;">'+esc(v.english)+'</div></div>'));
 
     function tenseSection(title, subtitle, tenseKey){
       var sec = el('<div class="conj-section"><div class="conj-title">'+esc(title)+' <span class="sub">'+esc(subtitle)+'</span></div></div>');
@@ -28138,8 +28228,14 @@ function renderQuick10Results(){
   app.appendChild(actionsRow);
 }
 
+var QUICK10_INFO_HTML =
+  '<h3>Quick 10</h3>'+
+  '<p>Use the Quick 10 tool to generate a personalised vocab test. Once you have selected the parameters, you will be presented with a list of 10 words to translate. Write your answers down on paper, then check and mark your answers by using the \'Reveal answers\' button. Once you have marked your answers, you should then change your Red/Amber/Green ratings.</p>'+
+  '<p>Do this little and often — a quick review of vocabulary every day will have a big impact on your learning.</p>';
+
 function renderQuick10(){
   titleEl.textContent = "Quick 10";
+  setInfoButton(QUICK10_INFO_HTML);
   if(q10ShowResults){
     renderQuick10Results();
   } else {
