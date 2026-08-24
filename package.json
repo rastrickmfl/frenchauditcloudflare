@@ -1,0 +1,16 @@
+{
+  "name": "gcse-french-vocab-audit",
+  "version": "3.0.1",
+  "private": true,
+  "description": "GCSE French vocab pupil web app with pupil accounts backed by Cloudflare D1 (migrated from Netlify Blobs).",
+  "scripts": {
+    "dev": "wrangler dev --persist-to ../.frenchvocab-wrangler-state",
+    "deploy": "wrangler deploy",
+    "db:schema:apply:local": "wrangler d1 execute frenchvocab-db --local --persist-to ../.frenchvocab-wrangler-state --file=0001_init.sql",
+    "db:schema:apply:remote": "wrangler d1 execute frenchvocab-db --remote --file=0001_init.sql",
+    "db:export": "wrangler d1 export frenchvocab-db --remote --output=backup.sql"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}

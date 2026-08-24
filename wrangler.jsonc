@@ -1,0 +1,31 @@
+{
+	"$schema": "./node_modules/wrangler/config-schema.json",
+	"name": "gcse-french-vocab-audit",
+	"main": "./index.js",
+	// Set this to today's date when you next touch this file
+	"compatibility_date": "2026-08-24",
+	"assets": {
+		// Everything lives in one flat directory (this repo's root) rather
+		// than a separate "public" folder — GitHub's web upload doesn't
+		// reliably preserve subfolders when you drag in loose files, so this
+		// avoids depending on that. Non-asset files (this config, the
+		// Worker's own .js files, docs, schema) are kept out of what
+		// actually gets served via .assetsignore below.
+		"directory": ".",
+		"binding": "ASSETS",
+		// Only /api/* routes invoke the Worker script; everything else
+		// (index.html, seed-demo-account.html) is served directly as a
+		// static asset, matching the old Netlify "publish = '.'" behaviour.
+		"run_worker_first": ["/api/*"]
+	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "frenchvocab-db",
+			"database_id": "1bf5077b-7e81-4b0e-bbbf-ea8ec617521a"
+		}
+	],
+	"observability": {
+		"enabled": true
+	}
+}
