@@ -4,10 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>GCSE French Vocab Audit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root{
-    --purple:#4B1F6F; --purple-dark:#33144D; --red:#D9534F; --amber:#E0A030; --green:#4CAF6D;
-    --ink:#222; --muted:#767676; --bg:#F7F5FA; --card:#FFFFFF; --border:#E4DEEE;
+    --purple:#03045E; --purple-dark:#020340; --red:#D9534F; --amber:#E0A030; --green:#4CAF6D;
+    --ink:#222; --muted:#767676; --bg:#E8F5F8; --card:#FFFFFF; --border:#E4DEEE; --tint:#DCEFF3;
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
@@ -18,7 +21,7 @@
      whatever width is left, the short page's content visibly sits further right. */
   html{overflow-y:scroll; scrollbar-gutter:stable;}
   body{
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
     background:var(--bg); color:var(--ink); padding-bottom:76px;
     -webkit-tap-highlight-color: transparent;
   }
@@ -27,6 +30,11 @@
     position:sticky; top:0; z-index:10; box-shadow:0 2px 6px rgba(0,0,0,.15);
   }
   header .row{display:flex; align-items:center; gap:10px;}
+  .flag-icon{
+    width:30px; height:30px; border-radius:50%; flex-shrink:0;
+    background:linear-gradient(to right, #0055A4 0 33.34%, #fff 33.34% 66.67%, #EF4135 66.67% 100%);
+    box-shadow:0 0 0 2px rgba(255,255,255,.55);
+  }
   header h1{font-size:18px; margin:0; font-weight:700; flex:1;}
   .teacher-badge{
     display:inline-block; margin-top:8px; background:#fff; color:var(--purple);
@@ -39,9 +47,9 @@
   .tile{
     display:flex; align-items:center; justify-content:space-between; gap:10px;
     background:var(--card); border:1px solid var(--border); border-radius:14px; padding:16px;
-    margin-bottom:10px; font-size:16px; font-weight:600; color:var(--ink); cursor:pointer;
+    margin-bottom:10px; font-size:15px; font-weight:600; color:var(--ink); cursor:pointer;
   }
-  .tile:active{background:#F0EBF8;}
+  .tile:active{background:var(--tint);}
   .tile .sub{font-size:12px; color:var(--muted); font-weight:400; margin-top:3px;}
   .tile .chev{color:var(--purple); font-size:20px;}
   .pill-row{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;}
@@ -63,10 +71,12 @@
   .q10-num{flex-shrink:0; width:20px; padding-top:12px; font-weight:800; color:var(--purple); font-size:13px;}
   .q10-card{flex:1; min-width:0;}
   .q10-card .word{margin-bottom:0;}
-  .segmented{display:flex; background:#EDE7F6; border-radius:12px; padding:4px; margin-bottom:12px;}
+  .segmented{display:flex; background:var(--tint); border-radius:12px; padding:4px; margin-bottom:12px;}
   .segmented button{flex:1; border:none; background:transparent; padding:10px; border-radius:9px; font-weight:700; color:var(--purple); font-size:14px;}
   .segmented button.active{background:var(--purple); color:#fff;}
   .cathead{font-weight:800; color:var(--purple); font-size:12px; letter-spacing:.06em; text-transform:uppercase; margin:16px 2px 6px;}
+  .tier-heading{display:inline-block; font-weight:800; color:#fff; background:var(--purple); font-size:12px; letter-spacing:.06em; text-transform:uppercase; padding:6px 14px; border-radius:20px; margin:18px 0 8px;}
+  .tier-heading:first-child{margin-top:0;}
   .word{background:var(--card); border:1px solid var(--border); border-radius:12px; padding:10px 12px; margin-bottom:8px;}
   .wrow{display:flex; align-items:center; justify-content:space-between; gap:10px;}
   .wtext{flex:1; min-width:0;}
@@ -86,7 +96,7 @@
   .add-btn{flex-shrink:0; background:#fff; color:var(--purple); border:2px solid var(--purple); border-radius:10px; padding:8px 14px; font-weight:800; font-size:13px;}
   .add-btn.on{background:var(--green); border-color:var(--green); color:#fff;}
   .frRow{display:flex; align-items:center; gap:6px;}
-  .spk{background:none; border:none; color:var(--purple); font-size:16px; padding:2px 5px; flex-shrink:0; line-height:1;}
+  .spk{background:none; border:none; color:var(--purple); font-size:15px; padding:2px 5px; flex-shrink:0; line-height:1;}
   .spk:active{opacity:.5;}
   #searchResults .word .note{color:var(--purple); font-weight:600;}
   input[type=file]{width:100%; font-size:13px; padding:8px 0;}
@@ -95,7 +105,7 @@
   .dc-progress-fill{height:100%; background:var(--purple); border-radius:4px; transition:width .25s ease;}
   .dc-card{
     width:100%; background:var(--card); border:1px solid var(--border); border-radius:20px;
-    box-shadow:0 4px 16px rgba(75,31,111,.10); padding:36px 22px; text-align:center;
+    box-shadow:0 4px 16px rgba(3,4,94,.10); padding:36px 22px; text-align:center;
     cursor:pointer; -webkit-tap-highlight-color:transparent;
   }
   .dc-prompt{font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); font-weight:700; margin-bottom:14px;}
@@ -107,8 +117,8 @@
   .dc-en{font-weight:400; font-style:italic;}
   .dc-rag-row{display:flex; gap:10px; margin-top:26px;}
   .dc-rag-row button{
-    flex:1; padding:12px 6px; border-radius:12px; border:2px solid transparent; background:#F2EEF8;
-    font-weight:700; font-size:12.5px; color:var(--ink); display:flex; flex-direction:column; align-items:center; gap:6px;
+    flex:1; padding:12px 6px; border-radius:12px; border:2px solid transparent; background:var(--tint);
+    font-weight:700; font-size:13px; color:var(--ink); display:flex; flex-direction:column; align-items:center; gap:6px;
   }
   .dc-rag-row button .dot{width:20px; height:20px; border-radius:50%;}
   .dc-rag-row button.r .dot{background:var(--red);} .dc-rag-row button.a .dot{background:var(--amber);} .dc-rag-row button.g .dot{background:var(--green);}
@@ -119,7 +129,7 @@
   .dc-next-hint{
     width:50px; height:50px; border-radius:50%; background:var(--purple); color:#fff;
     display:flex; align-items:center; justify-content:center; font-size:24px; font-weight:800;
-    box-shadow:0 3px 10px rgba(75,31,111,.25);
+    box-shadow:0 3px 10px rgba(3,4,94,.25);
   }
   .dc-next-label{margin-top:8px; font-size:12px; color:var(--muted); font-weight:600;}
   .dc-nav-row{display:flex; justify-content:space-between; align-items:center; margin-top:22px;}
@@ -163,11 +173,11 @@
   .conj-title{font-weight:800; color:var(--purple); font-size:13px; letter-spacing:.04em; text-transform:uppercase; margin-bottom:8px;}
   .conj-title .sub{font-weight:400; text-transform:none; letter-spacing:0; color:var(--muted); font-style:italic;}
   .conj-grid{display:grid; grid-template-columns:1fr 1fr; gap:6px 10px;}
-  .conj-cell{display:flex; flex-direction:column; gap:2px; background:#F7F5FA; border:1px solid var(--border); border-radius:10px; padding:8px 10px; font-size:14px;}
+  .conj-cell{display:flex; flex-direction:column; gap:2px; background:var(--tint); border:1px solid var(--border); border-radius:10px; padding:8px 10px; font-size:14px;}
   .conj-fr{display:flex; align-items:center; justify-content:space-between; gap:6px; font-weight:600;}
   .conj-en{color:var(--muted); font-size:12px; font-style:italic; line-height:1.3;}
   @media (max-width:380px){ .conj-grid{grid-template-columns:1fr;} }
-  .higher-toggle-row{display:flex; align-items:center; justify-content:space-between; background:#F3EBFB; border:1px solid var(--border); border-radius:12px; padding:10px 12px; margin:14px 0 6px;}
+  .higher-toggle-row{display:flex; align-items:center; justify-content:space-between; background:var(--tint); border:1px solid var(--border); border-radius:12px; padding:10px 12px; margin:14px 0 6px;}
   .higher-toggle-row b{color:var(--purple); font-size:13px;}
   .switch{position:relative; width:52px; height:30px; background:#ccc; border-radius:20px; flex-shrink:0;}
   .switch.on{background:var(--green);}
@@ -181,7 +191,7 @@
   .btn-row .btn{flex:1; margin-top:0;}
   .saved-list-tile{display:flex; align-items:center; justify-content:space-between; gap:10px;}
   .del{flex-shrink:0; background:none; border:none; color:var(--red); font-weight:800; font-size:18px; padding:4px 8px; line-height:1;}
-  textarea, input[type=text]{width:100%; border:2px solid var(--border); border-radius:10px; padding:10px; font-size:14px; font-family:monospace;}
+  textarea, input[type=text]{width:100%; border:2px solid var(--border); border-radius:10px; padding:10px; font-size:14px; font-family:inherit;}
   .muted{color:var(--muted); font-size:13px; line-height:1.5;}
   .qr-wrap{display:flex; justify-content:center; margin:14px 0;}
   .qr-wrap svg{background:#fff; padding:10px; border-radius:12px; border:1px solid var(--border);}
@@ -191,10 +201,10 @@
     box-shadow:0 -2px 8px rgba(0,0,0,.06); z-index:10;
   }
   nav.tabbar button{flex:1; background:none; border:none; padding:8px 2px; font-size:11px; font-weight:700; color:var(--muted); display:flex; flex-direction:column; align-items:center; gap:3px;}
-  nav.tabbar button .ic{font-size:19px;}
+  nav.tabbar button .ic{font-size:20px;}
   nav.tabbar button.active{color:var(--purple);}
   .banner{background:#FFF3CD; border:1px solid #FFE69C; color:#664D03; font-size:12px; padding:8px 10px; border-radius:10px; margin-bottom:12px;}
-  .progress-bar{height:8px; background:#EDE7F6; border-radius:6px; overflow:hidden; display:flex; margin-top:6px;}
+  .progress-bar{height:8px; background:var(--tint); border-radius:6px; overflow:hidden; display:flex; margin-top:6px;}
   .progress-bar span{height:100%;}
   a{color:var(--purple);}
 </style>
@@ -202,6 +212,7 @@
 <body>
 <header>
   <div class="row">
+    <span class="flag-icon" aria-hidden="true"></span>
     <button class="back" id="backBtn" style="display:none;">&larr;</button>
     <h1 id="pageTitle">GCSE French Vocab Audit</h1>
   </div>
@@ -2800,6 +2811,29 @@ function renderHome(){
     '</div>'
   );
   app.appendChild(searchCard);
+
+  var tierCard = el(
+    '<div class="card">'+
+      '<b>Vocabulary shown</b>'+
+      '<div class="segmented" style="margin-top:8px; margin-bottom:0;">'+
+        '<button data-tier="F"'+(!state.showHigher?' class="active"':'')+'>Foundation only</button>'+
+        '<button data-tier="FH"'+(state.showHigher?' class="active"':'')+'>Foundation + Higher</button>'+
+      '</div>'+
+      '<p class="muted" style="margin-top:8px; margin-bottom:0;">This controls every unit\'s word list, Verbs, Quick 10 and Print Flashcards.</p>'+
+    '</div>'
+  );
+  app.appendChild(tierCard);
+  tierCard.querySelectorAll("[data-tier]").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      state.showHigher = (btn.dataset.tier === "FH");
+      saveState();
+      tierCard.querySelectorAll("[data-tier]").forEach(function(b){
+        b.classList.toggle("active", b.dataset.tier === btn.dataset.tier);
+      });
+      buildNormal();
+    });
+  });
+
   var resultsWrap = el('<div id="searchResults"></div>');
   app.appendChild(resultsWrap);
 
@@ -2829,38 +2863,6 @@ function renderHome(){
     if(vocabOpenCategory === "aqa"){
       var aqaWrap = el('<div style="margin:6px 0 16px;"></div>');
       normalWrap.appendChild(aqaWrap);
-
-      var tierCard = el(
-        '<div class="card">'+
-          '<b>Vocabulary shown</b>'+
-          '<div class="segmented" style="margin-top:8px; margin-bottom:0;">'+
-            '<button data-tier="F"'+(!state.showHigher?' class="active"':'')+'>Foundation only</button>'+
-            '<button data-tier="FH"'+(state.showHigher?' class="active"':'')+'>Foundation + Higher</button>'+
-          '</div>'+
-          '<p class="muted" style="margin-top:8px; margin-bottom:0;">This controls every unit\'s word list, Verbs, Quick 10 and Print Flashcards.</p>'+
-        '</div>'
-      );
-      aqaWrap.appendChild(tierCard);
-      tierCard.querySelectorAll("[data-tier]").forEach(function(btn){
-        btn.addEventListener("click", function(){
-          state.showHigher = (btn.dataset.tier === "FH");
-          saveState();
-          buildNormal();
-        });
-      });
-
-      var c = ratingCounts();
-      aqaWrap.appendChild(el(
-        '<div class="card">'+
-          '<b>Your total progress</b>'+
-          '<div class="progress-bar" id="homeProgressBar">'+
-            '<span style="width:'+(100*c.R/c.total)+'%; background:var(--red)"></span>'+
-            '<span style="width:'+(100*c.A/c.total)+'%; background:var(--amber)"></span>'+
-            '<span style="width:'+(100*c.G/c.total)+'%; background:var(--green)"></span>'+
-          '</div>'+
-          '<div class="muted" id="homeProgressText" style="margin-top:6px;">'+c.rated+' of '+c.total+' words rated &middot; '+c.R+' red, '+c.A+' amber, '+c.G+' green</div>'+
-        '</div>'
-      ));
 
       DATA.units.forEach(function(u){
         var uc = unitRatingCounts(u);
@@ -4305,11 +4307,9 @@ function renderTeacherListView(id){
   app.appendChild(el(
     '<div class="card">'+
       '<div class="progress-bar" id="tlvProgressBar">'+
-        '<span style="width:'+(100*lc.R/(lc.total||1))+'%; background:var(--red)"></span>'+
-        '<span style="width:'+(100*lc.A/(lc.total||1))+'%; background:var(--amber)"></span>'+
         '<span style="width:'+(100*lc.G/(lc.total||1))+'%; background:var(--green)"></span>'+
       '</div>'+
-      '<div class="muted" id="tlvProgressText" style="margin-top:6px;">'+lc.rated+' of '+lc.total+' words rated &middot; '+lc.R+' red, '+lc.A+' amber, '+lc.G+' green</div>'+
+      '<div class="muted" id="tlvProgressText" style="margin-top:6px;">'+lc.G+' of '+lc.total+' words marked confident</div>'+
     '</div>'
   ));
 
@@ -27578,15 +27578,6 @@ function wireWordCard(cardEl, item, opts){
 }
 
 function refreshProgressIndicators(){
-  var hb = document.getElementById("homeProgressBar");
-  if(hb){
-    var c = ratingCounts();
-    hb.children[0].style.width = (100*c.R/c.total)+'%';
-    hb.children[1].style.width = (100*c.A/c.total)+'%';
-    hb.children[2].style.width = (100*c.G/c.total)+'%';
-    var ht = document.getElementById("homeProgressText");
-    if(ht) ht.textContent = c.rated+' of '+c.total+' words rated · '+c.R+' red, '+c.A+' amber, '+c.G+' green';
-  }
   DATA.units.forEach(function(u){
     var sub = document.getElementById("tileSub-"+u.key);
     if(sub){
@@ -27599,11 +27590,9 @@ function refreshProgressIndicators(){
     var uu = DATA.units.filter(function(x){ return x.key===currentUnitKey; })[0];
     if(uu){
       var ucc = unitRatingCounts(uu);
-      ub.children[0].style.width = (100*ucc.R/(ucc.total||1))+'%';
-      ub.children[1].style.width = (100*ucc.A/(ucc.total||1))+'%';
-      ub.children[2].style.width = (100*ucc.G/(ucc.total||1))+'%';
+      ub.children[0].style.width = (100*ucc.G/(ucc.total||1))+'%';
       var ut = document.getElementById("unitProgressText");
-      if(ut) ut.textContent = ucc.rated+' of '+ucc.total+' words rated · '+ucc.R+' red, '+ucc.A+' amber, '+ucc.G+' green';
+      if(ut) ut.textContent = ucc.G+' of '+ucc.total+' words marked confident';
     }
   }
   (myTeacherListsUi.lists||[]).forEach(function(l){
@@ -27618,22 +27607,18 @@ function refreshProgressIndicators(){
     var tl = getMyTeacherList(currentTeacherListId);
     if(tl){
       var tlc = teacherListRatingCountsForPupil(tl);
-      tlvb.children[0].style.width = (100*tlc.R/(tlc.total||1))+'%';
-      tlvb.children[1].style.width = (100*tlc.A/(tlc.total||1))+'%';
-      tlvb.children[2].style.width = (100*tlc.G/(tlc.total||1))+'%';
+      tlvb.children[0].style.width = (100*tlc.G/(tlc.total||1))+'%';
       var tlt = document.getElementById("tlvProgressText");
-      if(tlt) tlt.textContent = tlc.rated+' of '+tlc.total+' words rated · '+tlc.R+' red, '+tlc.A+' amber, '+tlc.G+' green';
+      if(tlt) tlt.textContent = tlc.G+' of '+tlc.total+' words marked confident';
     }
   }
 }
 
 var currentUnitKey = null;
-var currentTier = "F";
 function renderUnit(key){
   var u = DATA.units.filter(function(x){ return x.key===key; })[0];
   if(!u){ go("home"); return; }
-  if(key !== currentUnitKey){ currentTier = "F"; currentUnitKey = key; }
-  if(!state.showHigher) currentTier = "F";
+  currentUnitKey = key;
   app.innerHTML = "";
   titleEl.textContent = u.title;
   var seenIds = {};
@@ -27642,11 +27627,9 @@ function renderUnit(key){
   app.appendChild(el(
     '<div class="card">'+
       '<div class="progress-bar" id="unitProgressBar">'+
-        '<span style="width:'+(100*uc.R/(uc.total||1))+'%; background:var(--red)"></span>'+
-        '<span style="width:'+(100*uc.A/(uc.total||1))+'%; background:var(--amber)"></span>'+
         '<span style="width:'+(100*uc.G/(uc.total||1))+'%; background:var(--green)"></span>'+
       '</div>'+
-      '<div class="muted" id="unitProgressText" style="margin-top:6px;">'+uc.rated+' of '+uc.total+' words rated &middot; '+uc.R+' red, '+uc.A+' amber, '+uc.G+' green</div>'+
+      '<div class="muted" id="unitProgressText" style="margin-top:6px;">'+uc.G+' of '+uc.total+' words marked confident</div>'+
     '</div>'
   ));
 
@@ -27671,19 +27654,22 @@ function renderUnit(key){
   document.getElementById("toggleFilterRA").classList.toggle("on", state.filterRA);
   document.getElementById("toggleFilterRA").addEventListener("click", function(){ state.filterRA=!state.filterRA; saveState(); renderUnit(key); });
 
-  var segButtons = '<button data-tier="F"'+(currentTier==="F"?' class="active"':'')+'>Foundation</button>';
+  var foundationWrap, higherWrap = null;
   if(state.showHigher){
-    segButtons += '<button data-tier="H"'+(currentTier==="H"?' class="active"':'')+'>Higher</button>';
-  }
-  var seg = el('<div class="segmented">'+segButtons+'</div>');
-  app.appendChild(seg);
+    // Foundation + Higher selected on the main page: show both tiers at once,
+    // one under the other, rather than hiding Higher behind a toggle a pupil
+    // might never notice — they need both for the exam either way.
+    app.appendChild(el('<div class="tier-heading">Foundation</div>'));
+    foundationWrap = el('<div id="tierF"></div>');
+    app.appendChild(foundationWrap);
 
-  var foundationWrap = el('<div id="tierF"'+(currentTier==="F"?'':' class="hidden-section"')+'></div>');
-  app.appendChild(foundationWrap);
-  var higherWrap = null;
-  if(state.showHigher){
-    higherWrap = el('<div id="tierH"'+(currentTier==="H"?'':' class="hidden-section"')+'></div>');
+    app.appendChild(el('<div class="tier-heading">Higher</div>'));
+    higherWrap = el('<div id="tierH"></div>');
     app.appendChild(higherWrap);
+  } else {
+    // Foundation only: nothing to switch between, so no toggle needed.
+    foundationWrap = el('<div id="tierF"></div>');
+    app.appendChild(foundationWrap);
   }
 
   function buildTier(container, tier){
@@ -27715,16 +27701,6 @@ function renderUnit(key){
   }
   buildTier(foundationWrap, "F");
   if(higherWrap) buildTier(higherWrap, "H");
-
-  seg.querySelectorAll("button").forEach(function(btn){
-    btn.addEventListener("click", function(){
-      seg.querySelectorAll("button").forEach(function(b){ b.classList.remove("active"); });
-      btn.classList.add("active");
-      currentTier = btn.dataset.tier;
-      if(btn.dataset.tier==="F"){ foundationWrap.classList.remove("hidden-section"); if(higherWrap) higherWrap.classList.add("hidden-section"); }
-      else{ if(higherWrap) higherWrap.classList.remove("hidden-section"); foundationWrap.classList.add("hidden-section"); }
-    });
-  });
 }
 
 // ---------- Quick 10 ----------
