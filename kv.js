@@ -11,6 +11,24 @@ export async function kvGet(env, store, key) {
   return JSON.parse(row.value);
 }
 
+// Bulk read: one query for many keys in the same store, used by the
+// teacher-facing analytics endpoint so looking at a whole class doesn't
+// mean one D1 round-trip per pupil. Returns a plain {key: value} map —
+// missing keys are simply absent, same "null means nothing saved yet"
+// convention as kvGet.
+export async function kvGetMany(env, store, keys) {
+  const out = {};
+  if (!keys || keys.length === 0) return out;
+  const placeholders = keys.map(() => "?").join(",");
+  const rows = await env.DB.prepare(
+    `SELECT key, value FROM kv_store WHERE store = ? AND key IN (${placeholders})`
+  ).bind(store, ...keys).all();
+  for (const row of rows.results || []) {
+    out[row.key] = JSON.parse(row.value);
+  }
+  return out;
+}
+
 export async function kvSet(env, store, key, value) {
   await env.DB.prepare(
     `INSERT INTO kv_store (store, key, value, updated_at)

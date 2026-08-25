@@ -239,6 +239,12 @@
   nav.tabbar button .ic{font-size:20px;}
   nav.tabbar button.active{color:var(--purple);}
   .banner{background:#FFF3CD; border:1px solid #FFE69C; color:#664D03; font-size:var(--fs-subtext); padding:8px 10px; border-radius:10px; margin-bottom:12px;}
+  .banner.is-due-banner{cursor:pointer; background:#FDECEA; border-color:#F5C2C0; color:#7A1F17; font-weight:700;}
+  .streak-card{background:#FFF6D8; border:1px solid #F0DE8A;}
+  .streak-title{color:#8A6A00; font-weight:800; font-size:var(--fs-subtitle, 16px);}
+  .streak-count{color:#8A6A00; font-weight:700; margin-top:4px;}
+  .streak-freeze-note{color:#8A6A00; font-size:var(--fs-subtext); margin:8px 0 0; opacity:.9;}
+  .streak-req-note{color:#8A6A00; font-size:var(--fs-subtext); margin:8px 0 0; opacity:.75;}
   .info-modal-overlay{
     display:none; position:fixed; inset:0; background:rgba(2,3,64,.55); z-index:50;
     align-items:center; justify-content:center; padding:20px;
@@ -2673,6 +2679,16 @@ function pullRemoteState(){
   return withTimeout(req, 4000, false);
 }
 
+// Best-effort "last 5 logins" ping — fire-and-forget, never blocks anything.
+// Called both on a fresh login and on every returning-visit app boot below,
+// so a teacher's "last seen" view reflects actual opens of the app, not
+// just the rarer explicit login-form submits.
+function pingLogin(){
+  if(!ACCOUNT) return;
+  fetch("/api/logins?account="+encodeURIComponent(ACCOUNT), {method:"POST"})
+    .catch(function(e){});
+}
+
 var state = loadState();
 ensureStateShape();
 
@@ -2880,6 +2896,7 @@ function renderLogin(){
     route = {name:"home", param:null};
     loginBtn.textContent = "Logging in…";
     loginBtn.disabled = true;
+    pingLogin();
     pullRemoteState().then(function(){
       render();
       window.scrollTo(0,0);
@@ -2907,6 +2924,12 @@ function logOut(){
 var vocabOpenCategory = null; // "aqa" | "teacher" | "personal" | null — which Vocab-screen category is expanded; all start condensed
 function renderHome(){
   titleEl.textContent = "GCSE French Vocab Audit";
+
+  var streakBanner = renderStreakBanner();
+  if(streakBanner) app.appendChild(streakBanner);
+
+  var homeDueBanner = renderIsDueBanner();
+  if(homeDueBanner) app.appendChild(homeDueBanner);
 
   var searchCard = el(
     '<div class="card">'+
@@ -3590,7 +3613,58 @@ function renderClasses(){
   }
   if(classesUi.mode === "detail") renderClassDetail();
   else if(classesUi.mode === "create") renderClassCreate();
+  else if(classesUi.mode === "streaks") renderClassStreaks();
   else renderClassList();
+}
+
+// Relative "last seen" wording for the streaks/activity screen — falls back
+// to a plain date once it's been a while, same reasoning any "X ago" UI uses.
+function fmtRelativeTime(iso){
+  try{
+    var diffMs = Date.now() - new Date(iso).getTime();
+    var mins = Math.round(diffMs/60000);
+    if(mins < 1) return "just now";
+    if(mins < 60) return mins+" min"+(mins===1?"":"s")+" ago";
+    var hours = Math.round(mins/60);
+    if(hours < 24) return hours+" hour"+(hours===1?"":"s")+" ago";
+    var days = Math.round(hours/24);
+    if(days < 7) return days+" day"+(days===1?"":"s")+" ago";
+    return new Date(iso).toLocaleDateString(undefined, {day:"numeric", month:"short"});
+  }catch(e){ return "unknown"; }
+}
+
+function renderClassStreaks(){
+  var c = getClass(classesUi.classId);
+  if(!c){ clBackToList(); return; }
+  app.appendChild(el('<div class="card"><b>&#128293; Streaks &amp; activity &mdash; '+esc(c.name)+'</b>'+
+    '<p class="muted" style="margin-top:4px; margin-bottom:0;">Current daily streak and last time seen, for each pupil in this class.</p></div>'));
+  var key = "class:"+c.id;
+  if(analyticsUi.key !== key){
+    if(!analyticsUi.loading) loadClassAnalytics(key, c.members, classesRerender);
+    app.appendChild(el('<div class="card"><p class="muted" style="margin:0;">Loading&hellip;</p></div>'));
+  } else if(analyticsUi.error){
+    app.appendChild(el('<div class="card"><p style="margin:0; color:var(--red);">'+esc(analyticsUi.error)+'</p></div>'));
+  } else {
+    var pupils = analyticsUi.pupils || {};
+    var rows = c.members.slice().map(function(acct){
+      var p = pupils[acct] || {};
+      var streak = p.streak || {current:0, longest:0};
+      var logins = p.logins || [];
+      return {account:acct, streak:streak, lastSeen: logins.length ? fmtRelativeTime(logins[0]) : "never logged in"};
+    }).sort(function(a,b){ return b.streak.current - a.streak.current; });
+    var html = '<div class="card">';
+    rows.forEach(function(r){
+      html += '<div class="wrow" style="margin-bottom:10px;">'+
+        '<div class="wtext">'+esc(r.account)+'<div class="muted" style="font-size:12px;">Last seen: '+esc(r.lastSeen)+'</div></div>'+
+        '<div style="text-align:right; white-space:nowrap;"><div style="font-weight:800; color:#8A6A00;">&#128293; '+r.streak.current+'</div><div class="muted" style="font-size:12px;">best '+r.streak.longest+'</div></div>'+
+        '</div>';
+    });
+    html += '</div>';
+    app.appendChild(el(html));
+  }
+  var backPill = el('<div class="pill">&larr; Back to class</div>');
+  backPill.addEventListener("click", function(){ classesUi.mode = "detail"; classesRerender(); });
+  app.appendChild(backPill);
 }
 
 function clBackToList(){ classesUi.mode = "list"; classesUi.classId = null; classesRerender(); }
@@ -3712,12 +3786,17 @@ function renderClassDetail(){
   app.appendChild(renameCard);
 
   var manageRow = el(
-    '<div class="btn-row">'+
+    '<div class="btn-row" style="flex-wrap:wrap;">'+
       '<button class="btn secondary" id="clRenameBtn">Rename class</button>'+
       '<button class="btn secondary" id="clDeleteBtn">Delete class</button>'+
+      '<button class="btn secondary" id="clStreaksBtn">&#128293; Streaks &amp; activity</button>'+
     '</div>'
   );
   app.appendChild(manageRow);
+  document.getElementById("clStreaksBtn").addEventListener("click", function(){
+    classesUi.mode = "streaks";
+    classesRerender();
+  });
 
   var membersCard = el(
     '<div class="card"><b>Pupils in this class</b>'+
@@ -3992,7 +4071,18 @@ function renderTeacherLists(){
   }
   if(teacherListsUi.mode === "detail") renderTeacherListDetail();
   else if(teacherListsUi.mode === "create") renderTeacherListCreate();
+  else if(teacherListsUi.mode === "analytics") renderTlManageAnalytics();
   else renderTeacherListList();
+}
+
+function renderTlManageAnalytics(){
+  var list = getTeacherList(teacherListsUi.listId);
+  if(!list){ tlBackToList(); return; }
+  app.appendChild(el('<div class="card"><b>&#128202; Analytics &mdash; '+esc(list.name)+'</b></div>'));
+  renderClassRagAnalytics("tl:"+list.id, list.words, teacherListRecipients(list), teacherListsRerender);
+  var backPill = el('<div class="pill">&larr; Back to list</div>');
+  backPill.addEventListener("click", function(){ teacherListsUi.mode = "detail"; teacherListsRerender(); });
+  app.appendChild(backPill);
 }
 
 function tlBackToList(){ teacherListsUi.mode = "list"; teacherListsUi.listId = null; teacherListsRerender(); }
@@ -4097,12 +4187,17 @@ function renderTeacherListDetail(){
   app.appendChild(renameCard);
 
   var manageRow = el(
-    '<div class="btn-row">'+
+    '<div class="btn-row" style="flex-wrap:wrap;">'+
       '<button class="btn secondary" id="tlRenameBtn">Rename list</button>'+
       '<button class="btn secondary" id="tlDeleteBtn">Delete list</button>'+
+      '<button class="btn secondary" id="tlAnalyticsBtn">&#128202; Analytics</button>'+
     '</div>'
   );
   app.appendChild(manageRow);
+  document.getElementById("tlAnalyticsBtn").addEventListener("click", function(){
+    teacherListsUi.mode = "analytics";
+    teacherListsRerender();
+  });
 
   function updateSummary(){
     var l = getTeacherList(teacherListsUi.listId);
@@ -4470,6 +4565,7 @@ function renderManageIndependentStudy(){
   }
   if(isTasksUi.mode === "detail") renderIsManageDetail();
   else if(isTasksUi.mode === "create") renderIsManageCreate();
+  else if(isTasksUi.mode === "analytics") renderIsManageAnalytics();
   else renderIsManageList();
 }
 
@@ -4576,12 +4672,17 @@ function renderIsManageDetail(){
   app.appendChild(renameCard);
 
   var manageRow = el(
-    '<div class="btn-row">'+
+    '<div class="btn-row" style="flex-wrap:wrap;">'+
       '<button class="btn secondary" id="istRenameBtn">Rename task</button>'+
       '<button class="btn secondary" id="istDeleteBtn">Delete task</button>'+
+      '<button class="btn secondary" id="istAnalyticsBtn">&#128202; Analytics</button>'+
     '</div>'
   );
   app.appendChild(manageRow);
+  document.getElementById("istAnalyticsBtn").addEventListener("click", function(){
+    isTasksUi.mode = "analytics";
+    isTasksRerender();
+  });
 
   function updateSummary(){
     var t = getIsTask(isTasksUi.taskId);
@@ -4686,9 +4787,15 @@ function renderIsManageDetail(){
     pasteMsg.style.color = result.words.length ? "var(--green)" : "var(--red)";
   });
 
-  // "add one word at a time", with AQA-search autocomplete on the French box —
-  // a match fills both boxes from the master list as a convenience; it's not
-  // a link to that word, so a non-match just gets typed and added as-is.
+  // "add one word at a time", with AQA-search autocomplete on the French box.
+  // Tapping a suggestion doesn't just copy the text in any more — it links
+  // this task word to the SAME id as the AQA word, so state.ratings (already
+  // generic on id) is shared: rating "chien" anywhere in the app updates it
+  // everywhere, including here. The link only survives while the French box
+  // still reads exactly what was selected — editing it after picking a
+  // suggestion (or typing your own word that isn't on the list at all) falls
+  // back to a fresh, unlinked "is_" id, same as before.
+  var linkedAqaId = null;
   var addCard = el(
     '<div class="card">'+
       '<b>Or add one word at a time</b>'+
@@ -4706,6 +4813,7 @@ function renderIsManageDetail(){
   var suggestWrap = document.getElementById("istAddSuggestions");
   wireAccentRow(document.getElementById("istAccentRow"), frInput);
   function refreshAddSuggestions(){
+    linkedAqaId = null; // any real keystroke here invalidates a previously-picked match
     var q = frInput.value.trim();
     suggestWrap.innerHTML = "";
     if(!q) return;
@@ -4720,6 +4828,7 @@ function renderIsManageDetail(){
       row.addEventListener("click", function(){
         frInput.value = w.fr;
         enInput.value = w.en;
+        linkedAqaId = id; // setting .value programmatically doesn't fire "input", so this survives
         suggestWrap.innerHTML = "";
         enInput.focus();
       });
@@ -4733,9 +4842,11 @@ function renderIsManageDetail(){
     if(!fr || !en) return;
     var t = getIsTask(isTasksUi.taskId);
     if(!t) return;
-    t.words.push({id: genIsWordId(), fr:fr, en:en});
+    // still linked, and the French box still reads exactly the matched word — share its rating id
+    var wordId = (linkedAqaId!==null && WORD[linkedAqaId] && normText(WORD[linkedAqaId].fr)===normText(fr)) ? linkedAqaId : genIsWordId();
+    t.words.push({id: wordId, fr:fr, en:en});
     saveIsTasksData(true);
-    frInput.value = ""; enInput.value = ""; suggestWrap.innerHTML = ""; frInput.focus();
+    frInput.value = ""; enInput.value = ""; suggestWrap.innerHTML = ""; linkedAqaId = null; frInput.focus();
     refreshWords();
     updateSummary();
   }
@@ -4888,6 +4999,119 @@ function renderIsManageDetail(){
   istBackLink();
 }
 
+// ---- Shared teacher-facing RAG analytics (class + per-pupil + per-word) ----
+// Backs both "Manage Independent Study" -> task -> Analytics and "Manage
+// vocab lists" -> list -> Analytics. Same shape either way: a word list +
+// a set of target pupil accounts, read via one bulk /api/pupil-analytics
+// call (regardless of class size) and aggregated client-side — the same
+// "untouched word defaults to red" convention getRating() uses locally,
+// just applied to another pupil's ratings dict instead of this device's.
+var analyticsUi = {key:null, loading:false, error:null, pupils:null};
+
+function loadClassAnalytics(key, targets, onReady){
+  analyticsUi = {key:key, loading:true, error:null, pupils:null};
+  if(targets.length===0){
+    analyticsUi.loading = false;
+    analyticsUi.pupils = {};
+    if(onReady) onReady();
+    return;
+  }
+  fetch("/api/pupil-analytics?account="+encodeURIComponent(ACCOUNT)+"&targets="+encodeURIComponent(targets.join(","))+"&today="+encodeURIComponent(todayLocalISO()))
+    .then(function(r){ return r.ok ? r.json() : Promise.reject(new Error("bad response")); })
+    .then(function(data){
+      analyticsUi.pupils = (data && data.pupils) || {};
+      analyticsUi.loading = false;
+      if(onReady) onReady();
+    })
+    .catch(function(e){
+      analyticsUi.loading = false;
+      analyticsUi.error = "Couldn't load analytics — check you're online and try again.";
+      if(onReady) onReady();
+    });
+}
+
+// words: [{id,fr,en}]; targets: [account,...] (recipients); rerender: the
+// screen's own rerender fn, called once loading finishes. Appends its cards
+// straight into `app` — caller has already appended its own title/back pill.
+function renderClassRagAnalytics(key, words, targets, rerender){
+  if(targets.length===0){
+    app.appendChild(el('<div class="card"><p class="muted" style="margin:0;">Not shared with any pupils yet — analytics will appear here once it is.</p></div>'));
+    return;
+  }
+  if(analyticsUi.key !== key){
+    if(!analyticsUi.loading) loadClassAnalytics(key, targets, rerender);
+    app.appendChild(el('<div class="card"><p class="muted" style="margin:0;">Loading class analytics&hellip;</p></div>'));
+    return;
+  }
+  if(analyticsUi.error){
+    app.appendChild(el('<div class="card"><p style="margin:0; color:var(--red);">'+esc(analyticsUi.error)+'</p></div>'));
+    return;
+  }
+  var pupils = analyticsUi.pupils || {};
+  var perWordCounts = {};
+  words.forEach(function(w){ perWordCounts[w.id] = {R:0,A:0,G:0}; });
+  var totalSlots = 0, greenSlots = 0;
+  var perPupil = targets.map(function(acct){
+    var ratings = (pupils[acct] && pupils[acct].ratings) || {};
+    var c = {R:0,A:0,G:0};
+    words.forEach(function(w){
+      var r = ratings[w.id] || "R";
+      c[r]++;
+      perWordCounts[w.id][r]++;
+    });
+    totalSlots += words.length;
+    greenSlots += c.G;
+    return {account:acct, counts:c};
+  });
+  var classPct = totalSlots>0 ? Math.round(100*greenSlots/totalSlots) : 0;
+
+  var html = '<div class="card"><b>Class progress</b>'+
+    '<p class="muted" style="margin-top:4px;">'+greenSlots+' of '+totalSlots+' word-marks across '+targets.length+' pupil'+(targets.length===1?'':'s')+' are green.</p>'+
+    '<div class="progress-bar"><span style="width:'+classPct+'%; background:var(--green)"></span></div>'+
+    '</div>';
+  app.appendChild(el(html));
+
+  var pupilHtml = '<div class="card"><b>Per pupil</b><div style="margin-top:8px;">';
+  perPupil.slice().sort(function(a,b){ return b.counts.G - a.counts.G; }).forEach(function(p){
+    var total = words.length;
+    var pct = total>0 ? Math.round(100*p.counts.G/total) : 0;
+    pupilHtml += '<div style="margin-bottom:10px;">'+
+      '<div class="wrow" style="margin-bottom:2px;"><div class="wtext">'+esc(p.account)+'</div><div class="muted">'+p.counts.G+' / '+total+' green</div></div>'+
+      '<div class="progress-bar"><span style="width:'+pct+'%; background:var(--green)"></span></div>'+
+      '</div>';
+  });
+  pupilHtml += '</div></div>';
+  app.appendChild(el(pupilHtml));
+
+  // Sorted reds-first so the words most worth revisiting in lessons surface
+  // at the top — the "13/15 marked this red" use case.
+  var wordHtml = '<div class="card"><b>Per word</b>'+
+    '<p class="muted" style="margin-top:4px;">How the class currently rates each word &mdash; a quick way to spot ones worth going over again in lessons.</p>'+
+    '<div style="margin-top:8px;">';
+  words.slice().sort(function(a,b){
+    var ca = perWordCounts[a.id], cb = perWordCounts[b.id];
+    return (cb.R - ca.R) || (cb.A - ca.A);
+  }).forEach(function(w){
+    var c = perWordCounts[w.id];
+    wordHtml += '<div class="wrow" style="margin-bottom:6px;">'+
+      '<div class="wtext"><span style="font-weight:700;">'+esc(w.fr)+'</span> <span class="muted">&mdash; '+esc(w.en)+'</span></div>'+
+      '<div class="muted" style="white-space:nowrap;">'+c.R+' R &middot; '+c.A+' A &middot; '+c.G+' G</div>'+
+      '</div>';
+  });
+  wordHtml += '</div></div>';
+  app.appendChild(el(wordHtml));
+}
+
+function renderIsManageAnalytics(){
+  var task = getIsTask(isTasksUi.taskId);
+  if(!task){ istBackToList(); return; }
+  app.appendChild(el('<div class="card"><b id="istaTitle">&#128202; Analytics &mdash; '+esc(task.name)+'</b></div>'));
+  renderClassRagAnalytics("istask:"+task.id, task.words, isTaskRecipients(task), isTasksRerender);
+  var backPill = el('<div class="pill">&larr; Back to task</div>');
+  backPill.addEventListener("click", function(){ isTasksUi.mode = "detail"; isTasksRerender(); });
+  app.appendChild(backPill);
+}
+
 // ---- Pupil view of Independent Study tasks ----
 // Same targeting/loading shape as teacher vocab lists (myTeacherListsUi
 // above), plus a dueAt deadline. Own IS_WORD dict / "is_" id prefix keeps
@@ -4948,6 +5172,200 @@ function isTaskOverdue(task){
   return !isNaN(d.getTime()) && d.getTime() < Date.now();
 }
 
+// calendar-day difference (not a raw ms/24h divide) so "due today" is
+// stable regardless of what time of day it currently is, and "tomorrow"
+// means the next calendar date, not "within the next 24 hours".
+function daysUntilDue(dueAt){
+  var due = new Date(dueAt); due.setHours(0,0,0,0);
+  var today = new Date(); today.setHours(0,0,0,0);
+  return Math.round((due.getTime() - today.getTime()) / 86400000);
+}
+function isTaskRatingCountsForPupil(task){
+  var c = {R:0, A:0, G:0, total:task.words.length, rated:0};
+  task.words.forEach(function(w){ var r = getRating(w.id); c.rated++; c[r]++; });
+  return c;
+}
+
+// Nearest not-yet-overdue task due within the next 7 days, across the
+// pupil's whole Independent Study list — shown as a banner on both the
+// Vocab home screen (so it's seen without opening the Ind. Study tab) and
+// at the top of the Ind. Study tab itself. Returns null (renders nothing)
+// until myIsTasksUi has loaded, same "load then re-render" pattern used
+// everywhere else Independent Study data is fetched lazily.
+function renderIsDueBanner(){
+  if(myIsTasksUi.tasks === null){
+    if(!myIsTasksUi.loading) loadMyIsTasks(render);
+    return null;
+  }
+  var candidates = (myIsTasksUi.tasks||[]).filter(function(t){
+    if(!t.dueAt || isTaskOverdue(t)) return false;
+    var d = daysUntilDue(t.dueAt);
+    return d >= 0 && d <= 7;
+  }).sort(function(a,b){ return new Date(a.dueAt) - new Date(b.dueAt); });
+  if(candidates.length===0) return null;
+  var d = daysUntilDue(candidates[0].dueAt);
+  var label = d===0 ? "today" : d===1 ? "tomorrow" : "in "+d+" days";
+  var bannerEl = el('<div class="banner is-due-banner">&#127890; Independent Study due '+label+'</div>');
+  bannerEl.addEventListener("click", function(){ isDetailUi = {taskId:null, screen:"detail"}; go("independentStudy", null); });
+  return bannerEl;
+}
+
+// ---- Daily streak ----
+// A "day" is a UK school day (Mon-Fri). Completing a 20-card daily
+// flashcard session on a school day banks that day; one missed school day
+// per calendar month is auto-forgiven (a "freeze"), a second miss in the
+// same month resets the streak. Weekends don't count for or against it,
+// but a pupil can still do an optional "bonus" session on one. All the
+// actual date-math/freeze/reset rules live server-side in streaks.js —
+// this is just loading + rendering + launching the session.
+var myStreakUi = {loading:false, data:null, error:null}; // data: {streak:{current,longest}, todayCompleted, isSchoolDay, freezeNotice}
+
+function todayLocalISO(){
+  var d = new Date();
+  var mm = String(d.getMonth()+1); if(mm.length<2) mm = "0"+mm;
+  var dd = String(d.getDate()); if(dd.length<2) dd = "0"+dd;
+  return d.getFullYear()+"-"+mm+"-"+dd;
+}
+
+function loadMyStreak(onReady){
+  if(!ACCOUNT) return;
+  myStreakUi.loading = true;
+  myStreakUi.error = null;
+  fetch("/api/streaks?account="+encodeURIComponent(ACCOUNT)+"&today="+encodeURIComponent(todayLocalISO()))
+    .then(function(r){ return r.ok ? r.json() : Promise.reject(new Error("bad response")); })
+    .then(function(data){
+      myStreakUi.data = data;
+      myStreakUi.loading = false;
+      if(onReady) onReady();
+    })
+    .catch(function(e){
+      myStreakUi.loading = false;
+      myStreakUi.data = null;
+      myStreakUi.error = "Couldn't load your streak — check you're online and try again.";
+      if(onReady) onReady();
+    });
+}
+
+// Fire-and-forget from the pupil's own account, once a daily streak
+// session finishes all its cards. Updates the cached streak state in
+// place so the finish screen and (once they leave the session) the home
+// banner both reflect the new count without a second round trip.
+function postStreakCompletion(){
+  if(!ACCOUNT) return Promise.resolve(null);
+  return fetch("/api/streaks?account="+encodeURIComponent(ACCOUNT), {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({today: todayLocalISO()})
+  }).then(function(r){ return r.ok ? r.json() : null; })
+    .then(function(data){
+      if(data){
+        myStreakUi.data = {
+          streak: data.streak,
+          todayCompleted: true,
+          isSchoolDay: myStreakUi.data ? myStreakUi.data.isSchoolDay : isWeekdayLocal(new Date()),
+          freezeNotice: data.freezeNotice
+        };
+      }
+      return data;
+    })
+    .catch(function(e){ return null; });
+}
+function isWeekdayLocal(d){ var dow = d.getDay(); return dow>=1 && dow<=5; }
+function completeStreakSession(){
+  postStreakCompletion().then(function(){ render(); });
+}
+
+// Pool of every word visible to this pupil across the whole system — AQA
+// (respecting the Foundation/Higher setting, same as every other AQA
+// flashcard deck), every teacher vocab list they're targeted by, and every
+// Independent Study task (active or past-deadline — "anything RAG-ed
+// across the system" isn't scoped to what's currently due). Deduplicated
+// by id, so an AQA-linked Independent Study word (same id as the master
+// AQA word — see the RAG-sync note in Manage Independent Study) only
+// contributes once.
+function buildStreakWordPool(){
+  var byId = {};
+  Object.keys(WORD).forEach(function(id){
+    var w = WORD[id];
+    if(w.tier==="H" && !state.showHigher) return;
+    if(w.cat==="Verb") return; // stacked conjugation entries — not flashcard-shaped, same exclusion as fcVocabPool()
+    byId[id] = {id:id, fr:w.fr, en:w.en};
+  });
+  (myTeacherListsUi.lists||[]).forEach(function(l){
+    (l.words||[]).forEach(function(w){ byId[w.id] = {id:w.id, fr:w.fr, en:w.en}; });
+  });
+  (myIsTasksUi.tasks||[]).forEach(function(t){
+    (t.words||[]).forEach(function(w){ byId[w.id] = {id:w.id, fr:w.fr, en:w.en}; });
+  });
+  var buckets = {R:[], A:[], G:[]};
+  Object.keys(byId).forEach(function(id){ buckets[getRating(id)].push(byId[id]); });
+  return buckets;
+}
+// Aims for 10 green / 5 amber / 5 red (20 total); if a bucket comes up
+// short (e.g. a pupil with almost nothing red yet), backfills from
+// whatever's left over so the session still comes as close to 20 as the
+// pupil's actual vocab coverage allows, rather than coming up short.
+function pickStreakDeck(){
+  var buckets = buildStreakWordPool();
+  var g = shuffledCopy(buckets.G), a = shuffledCopy(buckets.A), r = shuffledCopy(buckets.R);
+  var deck = [];
+  function take(arr, n){ var got = arr.splice(0, n); deck = deck.concat(got); return n - got.length; }
+  var shortfall = take(g, 10) + take(a, 5) + take(r, 5);
+  if(shortfall > 0){
+    var leftovers = shuffledCopy(g.concat(a).concat(r));
+    deck = deck.concat(leftovers.slice(0, shortfall));
+  }
+  return shuffledCopy(deck);
+}
+function startStreakSession(){
+  function launch(){
+    var deck = pickStreakDeck();
+    if(deck.length===0) return; // no vocab anywhere yet to build a session from
+    startDigitalSession(deck, "fr2en", true, {showDirectionToggle:true, headerTitle:"Daily Streak", streakMode:true});
+  }
+  var pending = 0;
+  function need(fn){ pending++; fn(function(){ pending--; if(pending<=0) launch(); }); }
+  if(myTeacherListsUi.lists===null) need(loadMyTeacherLists);
+  if(myIsTasksUi.tasks===null) need(loadMyIsTasks);
+  if(pending===0) launch();
+}
+
+// Stands out deliberately from the rest of the interface (soft yellow,
+// colour-matched title) — this is meant to read as "today's headline task"
+// on the Vocab home page, not blend in with the ordinary white cards below
+// it. Hides itself once today is done: a school-day session banks the
+// streak and clears todayCompleted; a weekend "bonus" session doesn't
+// touch the streak but still hides the banner for the rest of that day via
+// lastBonusDay, so it doesn't sit there nagging after it's been done.
+function renderStreakBanner(){
+  if(!ACCOUNT) return null;
+  if(myStreakUi.data === null){
+    if(!myStreakUi.loading) loadMyStreak(render);
+    return null;
+  }
+  var d = myStreakUi.data;
+  if(d.todayCompleted) return null;
+  var n = d.streak.current;
+  var dayWord = n===1 ? "day" : "days";
+  var html = '<div class="card streak-card">';
+  if(d.isSchoolDay){
+    html += '<div class="streak-title">&#10024; Complete your daily tasks</div>';
+    html += '<div class="streak-count">Current streak: '+n+' '+dayWord+'</div>';
+    if(d.freezeNotice){
+      html += '<p class="streak-freeze-note">You used your monthly freeze '+esc(d.freezeNotice.missedLabel)+'. If you miss another weekday this month, your streak will reset to zero.</p>';
+    }
+  } else {
+    html += '<div class="streak-title">&#10024; Bonus practice available</div>';
+    html += '<div class="streak-count">Current streak: '+n+' '+dayWord+' &middot; weekends are optional and won’t affect it</div>';
+  }
+  html += '<button class="btn" id="streakStartBtn" style="margin-top:10px;">'+(d.isSchoolDay ? "Start today’s flashcards" : "Start bonus flashcards")+'</button>';
+  html += '<p class="streak-req-note">You must complete all 20 flashcards to end the session'+(d.isSchoolDay ? " and add today's progress to your streak." : ".")+'</p>';
+  html += '</div>';
+  var card = el(html);
+  card.querySelector("#streakStartBtn").addEventListener("click", startStreakSession);
+  return card;
+}
+
 var ISPUPIL_INFO_HTML =
   '<h3>Independent Study</h3>'+
   '<p>Your teacher sets Independent Study tasks here ahead of a vocab test in class, each with its own word list and deadline. Tasks are listed by deadline — once a deadline has passed the task greys out, but you can still open it any time to keep practising.</p>'+
@@ -4956,6 +5374,8 @@ var ISPUPIL_INFO_HTML =
 function renderIndependentStudy(){
   titleEl.textContent = "Independent Study";
   setInfoButton(ISPUPIL_INFO_HTML);
+  var dueBanner0 = renderIsDueBanner();
+  if(dueBanner0) app.appendChild(dueBanner0);
   if(myIsTasksUi.tasks === null){
     if(!myIsTasksUi.loading) loadMyIsTasks(function(){ render(); });
     app.appendChild(el('<p class="muted" style="margin-top:14px;">Loading your Independent Study tasks&hellip;</p>'));
@@ -5004,6 +5424,7 @@ function renderIsTaskScreen(taskId){
   }
   titleEl.textContent = task.name;
   setInfoButton(ISPUPIL_INFO_HTML);
+  currentIsTaskId = task.id;
   if(isDetailUi.taskId !== taskId){ isDetailUi = {taskId:taskId, screen:"detail"}; }
   if(isDetailUi.screen === "learn") renderIsLearnOptions(task);
   else renderIsTaskMain(task);
@@ -5017,6 +5438,15 @@ function renderIsTaskMain(task){
       (task.dueAt ? ((overdue?'Was due ':'Due ')+esc(fmtDueFull(task.dueAt))) : 'No deadline set')+
       ' &middot; '+task.words.length+' word'+(task.words.length===1?'':'s')+
     '</p></div>'
+  ));
+  var isc = isTaskRatingCountsForPupil(task);
+  app.appendChild(el(
+    '<div class="card">'+
+      '<div class="progress-bar" id="isProgressBar">'+
+        '<span style="width:'+(100*isc.G/(isc.total||1))+'%; background:var(--green)"></span>'+
+      '</div>'+
+      '<div class="muted" id="isProgressText" style="margin-top:6px;">'+isc.G+' of '+isc.total+' words marked confident</div>'+
+    '</div>'
   ));
   var learnTile = el('<div class="tile"><div><div>&#127891; Learn (Generate Flashcards)</div><div class="sub">Straight into digital or paper flashcards for this set</div></div><div class="chev">&rsaquo;</div></div>');
   learnTile.addEventListener("click", function(){ isDetailUi.screen = "learn"; render(); window.scrollTo(0,0); });
@@ -5127,6 +5557,7 @@ function teacherListRatingCountsForPupil(list){
 }
 
 var currentTeacherListId = null;
+var currentIsTaskId = null;
 function renderTeacherListView(id){
   currentTeacherListId = id;
   if(myTeacherListsUi.lists === null){
@@ -5419,26 +5850,32 @@ function renderFcStepMySets(){
   fcBackAndRestart();
 }
 
+// Which-ratings-to-include is really one decision — keep green words in or
+// leave them out — so this is a 2-way segmented choice rather than 3
+// independent toggles. Kept internally as the same {R,A,G} shape everything
+// downstream (fcVocabPool/fcTeacherListPool, the persisted quick10Colors
+// preference) already reads by rating letter, so this is the only place
+// that changes: R and A always stay true, only G moves.
 function renderFcStepColors(){
-  fcStepHeader("Which ratings to include?");
+  fcStepHeader("Which words to test?");
   var sel = fcWizard.colors || {R:true, A:true, G:false};
-  var pillsCard = el('<div class="card"><div class="pill-row" id="fcColors"></div></div>');
-  app.appendChild(pillsCard);
-  var row = pillsCard.querySelector("#fcColors");
-  [["R","Red","r"],["A","Amber","a"],["G","Green","g"]].forEach(function(t){
-    var pill = el('<div class="pill '+t[2]+(sel[t[0]]?" on":"")+'">'+t[1]+'</div>');
-    pill.addEventListener("click", function(){
-      sel[t[0]] = !sel[t[0]];
-      pill.classList.toggle("on", sel[t[0]]);
-      msg.style.display = "none";
+  var card = el('<div class="card"><div class="segmented" id="fcColors" style="margin-top:0;"><button data-g="1">Test all words in set</button><button data-g="0">Don\'t include green words</button></div></div>');
+  app.appendChild(card);
+  var row = card.querySelector("#fcColors");
+  function paint(){
+    row.querySelectorAll("button").forEach(function(b){
+      b.classList.toggle("active", (b.dataset.g==="1") === !!sel.G);
     });
-    row.appendChild(pill);
+  }
+  row.querySelectorAll("button").forEach(function(b){
+    b.addEventListener("click", function(){
+      sel = {R:true, A:true, G: b.dataset.g==="1"};
+      paint();
+    });
   });
-  var msg = el('<p class="muted" style="display:none;">Pick at least one colour to continue.</p>');
-  app.appendChild(msg);
+  paint();
   var nextBtn = el('<button class="btn">Continue</button>');
   nextBtn.addEventListener("click", function(){
-    if(!sel.R && !sel.A && !sel.G){ msg.style.display=""; return; }
     fcWizard.colors = sel;
     fcGoNext();
   });
@@ -5805,7 +6242,7 @@ function renderFlashcards(){
 }
 
 // ---- Digital Flashcards (card-by-card self-test) ----
-var fcDigital = {active:false, ended:false, deck:[], items:[], direction:"fr2en", ratable:false, idx:0, revealed:false, lap:1, totalSeen:0, sessionRatings:{}};
+var fcDigital = {active:false, ended:false, deck:[], items:[], direction:"fr2en", ratable:false, idx:0, revealed:false, lap:1, totalSeen:0, sessionRatings:{}, streakMode:false, streakCompleted:false};
 
 function shuffledCopy(arr){
   var copy = arr.slice();
@@ -5844,10 +6281,13 @@ function cancelScheduledDigitalAdvance(){
   fcDigital.advancing = false;
 }
 
-// opts: {showDirectionToggle, headerTitle} — both optional, used by
-// Independent Study's Learn screen (mid-session French<->English toggle,
-// and "Independent Study" in the header instead of "Flashcards"). Every
-// existing call site omits opts, so behaviour there is unchanged.
+// opts: {showDirectionToggle, headerTitle, streakMode} — all optional, used
+// by Independent Study's Learn screen (mid-session French<->English toggle,
+// and "Independent Study" in the header instead of "Flashcards") and by the
+// daily streak session (streakMode: finite 20-card deck that ends instead of
+// looping, and banks a streak day the moment it's completed in full — see
+// advanceDigitalCard()). Every pre-existing call site omits opts, so
+// behaviour there is unchanged.
 function startDigitalSession(deckItems, direction, ratable, opts){
   opts = opts || {};
   var deck = deckItems.slice();
@@ -5855,7 +6295,8 @@ function startDigitalSession(deckItems, direction, ratable, opts){
     active:true, ended:false, advancing:false, deck:deck, items:deck.slice(),
     direction:direction||"fr2en", ratable:!!ratable,
     idx:0, revealed:false, lap:1, totalSeen:0, sessionRatings:{},
-    showDirectionToggle: !!opts.showDirectionToggle, headerTitle: opts.headerTitle || null
+    showDirectionToggle: !!opts.showDirectionToggle, headerTitle: opts.headerTitle || null,
+    streakMode: !!opts.streakMode, streakCompleted:false
   };
   fcRerender();
 }
@@ -5887,9 +6328,21 @@ function advanceDigitalCard(){
   fcDigital.revealed = false;
   fcDigital.advancing = false;
   if(fcDigital.idx >= fcDigital.items.length){
-    fcDigital.lap++;
-    fcDigital.items = fcDigital.ratable ? buildSmartLapOrder(fcDigital.deck) : shuffledCopy(fcDigital.deck);
-    fcDigital.idx = 0;
+    if(fcDigital.streakMode){
+      // Finite deck, not an infinite loop — reaching the end here IS
+      // "completing all N flashcards", the moment (and the only moment)
+      // that banks today's streak day. A manual "End session" tap never
+      // reaches this branch, so it can never award credit early.
+      fcDigital.ended = true;
+      if(!fcDigital.streakCompleted){
+        fcDigital.streakCompleted = true;
+        completeStreakSession();
+      }
+    } else {
+      fcDigital.lap++;
+      fcDigital.items = fcDigital.ratable ? buildSmartLapOrder(fcDigital.deck) : shuffledCopy(fcDigital.deck);
+      fcDigital.idx = 0;
+    }
   }
   render();
 }
@@ -6026,11 +6479,17 @@ function renderDigitalSession(){
   navRow.appendChild(advanceBtn);
   app.appendChild(navRow);
 
-  var exitRow = el('<div class="pill-row" style="margin-top:14px;"></div>');
-  var exitPill = el('<div class="pill">End session</div>');
-  exitPill.addEventListener("click", endDigitalSessionNow);
-  exitRow.appendChild(exitPill);
-  app.appendChild(exitRow);
+  // Streak sessions can't be manually ended early — the whole point is that
+  // all 20 cards have to be gone through to bank the day. Once they have
+  // been (streakCompleted), fcDigital.ended is already true and this
+  // function returns before reaching here anyway.
+  if(!fcDigital.streakMode){
+    var exitRow = el('<div class="pill-row" style="margin-top:14px;"></div>');
+    var exitPill = el('<div class="pill">End session</div>');
+    exitPill.addEventListener("click", endDigitalSessionNow);
+    exitRow.appendChild(exitPill);
+    app.appendChild(exitRow);
+  }
 }
 
 function renderDigitalFinish(){
@@ -6039,10 +6498,16 @@ function renderDigitalFinish(){
   var ratedCount = Object.keys(fcDigital.sessionRatings).length;
   var roundsLabel = fcDigital.lap===1 ? "1 round" : fcDigital.lap+" rounds";
 
-  var html =
-    '<div class="dc-finish"><h2>Session complete!</h2>'+
-    '<div style="color:var(--muted); font-size:13px;">You went through '+fcDigital.totalSeen+' card'+(fcDigital.totalSeen===1?'':'s')+
-      ' across '+roundsLabel+'.</div>';
+  var html = '<div class="dc-finish">';
+  if(fcDigital.streakMode && fcDigital.streakCompleted){
+    var sc = (myStreakUi.data && myStreakUi.data.streak && myStreakUi.data.streak.current) || 1;
+    html += '<h2>&#128293; Streak day secured!</h2>'+
+      '<div style="color:var(--muted); font-size:13px;">Current streak: '+sc+' day'+(sc===1?'':'s')+'.</div>';
+  } else {
+    html += '<h2>Session complete!</h2>'+
+      '<div style="color:var(--muted); font-size:13px;">You went through '+fcDigital.totalSeen+' card'+(fcDigital.totalSeen===1?'':'s')+
+        ' across '+roundsLabel+'.</div>';
+  }
   if(fcDigital.ratable){
     html +=
       '<div class="dc-breakdown">'+
@@ -6055,7 +6520,7 @@ function renderDigitalFinish(){
   html +=
     '<div class="dc-finish-actions">'+
       '<button class="secondary" id="dcRestart">Review again</button>'+
-      '<button class="primary" id="dcMenu">Back to menu</button>'+
+      '<button class="primary" id="dcMenu">'+(fcDigital.streakMode ? "Back to Vocab" : "Back to menu")+'</button>'+
     '</div></div>';
 
   app.appendChild(el(html));
@@ -28490,6 +28955,16 @@ function refreshProgressIndicators(){
       if(tlt) tlt.textContent = tlc.G+' of '+tlc.total+' words marked confident';
     }
   }
+  var isb = document.getElementById("isProgressBar");
+  if(isb && currentIsTaskId){
+    var ist3 = getMyIsTask(currentIsTaskId);
+    if(ist3){
+      var isc2 = isTaskRatingCountsForPupil(ist3);
+      isb.children[0].style.width = (100*isc2.G/(isc2.total||1))+'%';
+      var ist3t = document.getElementById("isProgressText");
+      if(ist3t) ist3t.textContent = isc2.G+' of '+isc2.total+' words marked confident';
+    }
+  }
 }
 
 var currentUnitKey = null;
@@ -28877,26 +29352,29 @@ function renderQ10StepTeacherList(){
   q10BackAndRestart();
 }
 
+// Same 2-way segmented simplification as renderFcStepColors() — see the
+// comment there. state.quick10Colors is the persisted preference (still
+// the same {R,A,G} shape, so old saved pupil states need no migration).
 function renderQ10StepColors(){
-  q10StepHeader("Which ratings to include?");
+  q10StepHeader("Which words to test?");
   var sel = q10Wizard.colors || {R:state.quick10Colors.R, A:state.quick10Colors.A, G:state.quick10Colors.G};
-  var pillsCard = el('<div class="card"><div class="pill-row" id="q10wColors"></div></div>');
-  app.appendChild(pillsCard);
-  var row = pillsCard.querySelector("#q10wColors");
-  [["R","Red","r"],["A","Amber","a"],["G","Green","g"]].forEach(function(t){
-    var pill = el('<div class="pill '+t[2]+(sel[t[0]]?" on":"")+'">'+t[1]+'</div>');
-    pill.addEventListener("click", function(){
-      sel[t[0]] = !sel[t[0]];
-      pill.classList.toggle("on", sel[t[0]]);
-      msg.style.display = "none";
+  var card = el('<div class="card"><div class="segmented" id="q10wColors" style="margin-top:0;"><button data-g="1">Test all words in set</button><button data-g="0">Don\'t include green words</button></div></div>');
+  app.appendChild(card);
+  var row = card.querySelector("#q10wColors");
+  function paint(){
+    row.querySelectorAll("button").forEach(function(b){
+      b.classList.toggle("active", (b.dataset.g==="1") === !!sel.G);
     });
-    row.appendChild(pill);
+  }
+  row.querySelectorAll("button").forEach(function(b){
+    b.addEventListener("click", function(){
+      sel = {R:true, A:true, G: b.dataset.g==="1"};
+      paint();
+    });
   });
-  var msg = el('<p class="muted" style="display:none;">Pick at least one colour to continue.</p>');
-  app.appendChild(msg);
+  paint();
   var nextBtn = el('<button class="btn">Continue</button>');
   nextBtn.addEventListener("click", function(){
-    if(!sel.R && !sel.A && !sel.G){ msg.style.display=""; return; }
     q10Wizard.colors = sel;
     q10GoNext();
   });
@@ -29216,6 +29694,7 @@ if(ACCOUNT){
   // returning visit on this device — show the local cache immediately (above),
   // then quietly refresh from the account's synced copy in case another
   // device saved something newer.
+  pingLogin();
   pullRemoteState().then(function(hadRemote){ if(hadRemote) render(); });
 }
 })();
