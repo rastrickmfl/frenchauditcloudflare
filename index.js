@@ -9,6 +9,7 @@
 import { handleState } from "./state.js";
 import { handleClasses } from "./classes.js";
 import { handleTeacherLists } from "./teacher-lists.js";
+import { handleIndependentStudy } from "./independent-study.js";
 import { json } from "./kv.js";
 
 export default {
@@ -23,6 +24,9 @@ export default {
     }
     if (url.pathname === "/api/teacher-lists") {
       return handleTeacherLists(request, env, url);
+    }
+    if (url.pathname === "/api/independent-study") {
+      return handleIndependentStudy(request, env, url);
     }
 
     // Any other path that reached the Worker (run_worker_first is scoped to

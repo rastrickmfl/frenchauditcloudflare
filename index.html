@@ -22,8 +22,10 @@
        Flashcards front/back word display, its round advance button, and the
        session-result numbers are large by design, not paragraph text; icon
        glyphs (chevrons, the info "i", the speaker button) are sized for the
-       glyph, not for reading; the bottom tab bar keeps a smaller label so five
-       tabs fit one row without wrapping; and the printed-flashcards stylesheet
+       glyph, not for reading; the bottom tab bar keeps a smaller label so six
+       tabs fit one row without wrapping (checked "Ind. Study" specifically —
+       fits on one line at this size; "Independent Study" doesn't); and the
+       printed-flashcards stylesheet
        (@media print) is a different medium with its own point sizes for
        cutting/folding physical cards. */
     --fs-eyebrow:12px;
@@ -82,6 +84,7 @@
     margin-bottom:10px; font-size:var(--fs-title); font-weight:var(--fw-title); color:var(--ink); cursor:pointer;
   }
   .tile:active{background:var(--tint);}
+  .tile.is-past{opacity:.55;} /* Independent Study: deadline has passed — still fully clickable, just visually de-emphasised */
   .tile .sub{font-size:var(--fs-subtext); color:var(--muted); font-weight:var(--fw-subtext); margin-top:3px;}
   .tile .chev{color:var(--purple); font-size:20px;}
   .pill-row{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;}
@@ -232,7 +235,7 @@
     display:flex; padding:6px 4px calc(6px + env(safe-area-inset-bottom));
     box-shadow:0 -2px 8px rgba(0,0,0,.06); z-index:10;
   }
-  nav.tabbar button{flex:1; background:none; border:none; padding:8px 2px; font-size:11px; font-weight:700; color:var(--muted); display:flex; flex-direction:column; align-items:center; gap:3px;} /* kept small on purpose — 5 tabs, fixed width, no room to grow without wrapping */
+  nav.tabbar button{flex:1; background:none; border:none; padding:8px 2px; font-size:11px; font-weight:700; color:var(--muted); display:flex; flex-direction:column; align-items:center; gap:3px;} /* kept small on purpose — 6 tabs, fixed width, no room to grow without wrapping */
   nav.tabbar button .ic{font-size:20px;}
   nav.tabbar button.active{color:var(--purple);}
   .banner{background:#FFF3CD; border:1px solid #FFE69C; color:#664D03; font-size:var(--fs-subtext); padding:8px 10px; border-radius:10px; margin-bottom:12px;}
@@ -280,6 +283,7 @@
   <button data-route="verbs"><span class="ic">&#128216;</span>Verbs</button>
   <button data-route="quick10"><span class="ic">&#128466;&#65039;</span>Quick 10</button>
   <button data-route="flashcards"><span class="ic">&#128199;</span>Flashcards</button>
+  <button data-route="independentStudy"><span class="ic">&#127890;</span>Ind. Study</button>
   <button data-route="sync"><span class="ic">&#9881;&#65039;</span>Settings</button>
 </nav>
 <div id="printArea"></div>
@@ -2729,6 +2733,7 @@ function go(name, param){
 document.querySelectorAll("nav.tabbar button").forEach(function(b){
   b.addEventListener("click", function(){
     if(b.dataset.route==="flashcards"){ fcResetWizard(); }
+    if(b.dataset.route==="independentStudy"){ isDetailUi = {taskId:null, screen:"detail"}; }
     go(b.dataset.route, null);
   });
 });
@@ -2802,10 +2807,30 @@ function render(){
   document.querySelectorAll("nav.tabbar button").forEach(function(b){
     b.classList.toggle("active", b.dataset.route===route.name);
   });
-  backBtn.style.display = (route.name==="unit" || route.name==="personal" || route.name==="classes" || route.name==="teacherLists" || route.name==="teacherListView") ? "" : "none";
+  backBtn.style.display = (route.name==="unit" || route.name==="personal" || route.name==="classes" || route.name==="teacherLists" || route.name==="teacherListView" || route.name==="independentStudyTask" || route.name==="manageIndependentStudy") ? "" : "none";
   hideInfoModal();
   clearInfoButton();
   app.innerHTML = "";
+  // These two intercepts run before the normal route dispatch below, and on
+  // whichever tab/screen kicked them off, so a Digital Flashcards session or a
+  // Quick 10 results screen launched from Independent Study (which never
+  // navigates away from the "independentStudyTask" route — see renderIsLearnOptions/
+  // renderIsTaskMain) renders in place, with that tab still highlighted, and
+  // exiting lands back on the screen that started it. Existing entry points
+  // (the Flashcards/Quick 10 tabs) behave exactly as before, since fcDigital.active/
+  // q10ShowResults could previously only become true while already on those routes.
+  if(fcDigital.active){
+    titleEl.textContent = fcDigital.headerTitle || "Flashcards";
+    setInfoButton(FLASHCARDS_INFO_HTML);
+    renderDigitalSession();
+    return;
+  }
+  if(q10ShowResults){
+    titleEl.textContent = (q10Wizard && q10Wizard.headerTitle) || "Quick 10";
+    setInfoButton(QUICK10_INFO_HTML);
+    renderQuick10Results();
+    return;
+  }
   if(route.name==="home") renderHome();
   else if(route.name==="unit") renderUnit(route.param);
   else if(route.name==="quick10") renderQuick10();
@@ -2816,6 +2841,9 @@ function render(){
   else if(route.name==="classes") renderClasses();
   else if(route.name==="teacherLists") renderTeacherLists();
   else if(route.name==="teacherListView") renderTeacherListView(route.param);
+  else if(route.name==="independentStudy") renderIndependentStudy();
+  else if(route.name==="independentStudyTask") renderIsTaskScreen(route.param);
+  else if(route.name==="manageIndependentStudy") renderManageIndependentStudy();
 }
 
 function renderLogin(){
@@ -4314,6 +4342,737 @@ function renderTeacherListDetail(){
   tlBackLink();
 }
 
+// ---- Independent Study tasks (teacher authoring) ----
+// Mirrors teacher-lists.js's teacherListsUi family closely — same shared-
+// across-all-teachers backend pattern, same class/pupil targeting — plus a
+// dueAt deadline field and an AQA-search autocomplete on the one-at-a-time
+// add form. Word ids get an "is_" prefix (distinct from "t_"/"p_").
+var isTasksUi = {mode:"list", tasks:null, loading:false, error:null, taskId:null, flashMsg:null};
+var isTasksPushTimer = null;
+
+function isTasksUrl(){ return "/api/independent-study?account=" + encodeURIComponent(ACCOUNT); }
+function isTasksRerender(){ render(); window.scrollTo(0,0); }
+
+function enterIsTasksScreen(){
+  isTasksUi = {mode:"list", tasks:null, loading:false, error:null, taskId:null, flashMsg:null};
+  go("manageIndependentStudy", null);
+}
+
+function loadIsTasksData(){
+  isTasksUi.loading = true;
+  isTasksUi.error = null;
+  fetch(isTasksUrl())
+    .then(function(r){ return r.ok ? r.json() : Promise.reject(new Error("bad response")); })
+    .then(function(data){
+      isTasksUi.tasks = (data && data.tasks) || [];
+      isTasksUi.loading = false;
+      isTasksRerender();
+    })
+    .catch(function(e){
+      isTasksUi.loading = false;
+      isTasksUi.error = "Couldn't load Independent Study tasks — check you're online and try again.";
+      isTasksRerender();
+    });
+}
+
+function saveIsTasksData(immediate){
+  if(!isTasksUi.tasks) return;
+  if(isTasksPushTimer) clearTimeout(isTasksPushTimer);
+  var doSave = function(){
+    if(!ACCOUNT) return;
+    fetch(isTasksUrl(), {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(isTasksUi.tasks)
+    }).catch(function(e){ /* offline or function unavailable — edits stay in this screen's memory */ });
+  };
+  if(immediate) doSave();
+  else isTasksPushTimer = setTimeout(doSave, 800);
+}
+
+function genIsTaskId(name, existing){
+  var base = "ist-" + classSlugify(name);
+  var used = {};
+  (existing||[]).forEach(function(t){ used[t.id] = true; });
+  var id = base, n = 2;
+  while(used[id]){ id = base + "-" + n; n++; }
+  return id;
+}
+function genIsWordId(){ return "is_" + Date.now() + "_" + Math.floor(Math.random()*1e6); }
+function getIsTask(id){ return (isTasksUi.tasks||[]).filter(function(t){ return t.id===id; })[0] || null; }
+
+function isTaskRecipients(task){
+  var set = {};
+  (task.targetClasses||[]).forEach(function(cid){
+    var c = getClass(cid);
+    if(c) c.members.forEach(function(m){ set[m] = true; });
+  });
+  (task.targetPupils||[]).forEach(function(p){ set[p] = true; });
+  return Object.keys(set);
+}
+function isTaskTargetSummary(task){
+  var classNames = (task.targetClasses||[]).map(function(cid){ var c = getClass(cid); return c ? c.name : null; }).filter(Boolean);
+  var pupilCount = (task.targetPupils||[]).length;
+  var parts = [];
+  if(classNames.length) parts.push(classNames.join(", "));
+  if(pupilCount) parts.push(pupilCount+" individual pupil"+(pupilCount===1?'':'s'));
+  if(parts.length===0) return "Not shared with anyone yet";
+  var total = isTaskRecipients(task).length;
+  return parts.join(" + ") + " — " + total + " pupil" + (total===1?'':'s') + " total";
+}
+
+// same tab/comma-separated paste parser as teacher vocab lists, own id prefix
+function parseIsTaskPaste(raw){
+  var lines = (raw||"").split(/\r?\n/).map(function(l){ return l.replace(/\r$/,''); }).filter(function(l){ return l.trim().length>0; });
+  var words = [], skipped = 0;
+  lines.forEach(function(line){
+    var sep = line.indexOf("\t")>-1 ? "\t" : ",";
+    var idx = line.indexOf(sep);
+    if(idx===-1){ skipped++; return; }
+    var fr = line.slice(0,idx).trim();
+    var en = line.slice(idx+sep.length).trim();
+    if(!fr || !en){ skipped++; return; }
+    words.push({id: genIsWordId(), fr:fr, en:en});
+  });
+  return {words:words, skipped:skipped};
+}
+
+// default deadline time when a teacher picks a date and hasn't touched the
+// time field yet — "the time will default to 9:00am on the date selected"
+var IS_DEFAULT_TIME = "09:00";
+function isDeadlineIso(dateStr, timeStr){
+  if(!dateStr) return null;
+  return dateStr + "T" + (timeStr || IS_DEFAULT_TIME);
+}
+
+function renderManageIndependentStudy(){
+  titleEl.textContent = "Independent Study";
+  if(!isTeacher()){
+    app.appendChild(el('<div class="card"><b>Teacher accounts only</b><p class="muted">This page is for creating and targeting Independent Study tasks, and is only available to teacher accounts.</p></div>'));
+    return;
+  }
+  if(isTasksUi.error){
+    app.appendChild(el('<div class="card"><b>Couldn\'t load tasks</b><p class="muted">'+esc(isTasksUi.error)+'</p></div>'));
+    var retryBtn = el('<button class="btn secondary">Try again</button>');
+    retryBtn.addEventListener("click", function(){ isTasksUi.tasks=null; isTasksUi.error=null; isTasksRerender(); loadIsTasksData(); });
+    app.appendChild(retryBtn);
+    return;
+  }
+  if(isTasksUi.tasks === null){
+    if(!isTasksUi.loading) loadIsTasksData();
+    app.appendChild(el('<p class="muted" style="margin-top:14px;">Loading Independent Study tasks&hellip;</p>'));
+    return;
+  }
+  if(isTasksUi.mode !== "list" && classesUi.classes === null){
+    if(!classesUi.loading) loadClassesData();
+    app.appendChild(el('<p class="muted" style="margin-top:14px;">Loading classes&hellip;</p>'));
+    return;
+  }
+  if(isTasksUi.mode === "detail") renderIsManageDetail();
+  else if(isTasksUi.mode === "create") renderIsManageCreate();
+  else renderIsManageList();
+}
+
+function istBackToList(){ isTasksUi.mode = "list"; isTasksUi.taskId = null; isTasksRerender(); }
+function istBackLink(){
+  var row = el('<div class="pill-row" style="margin-top:14px;"></div>');
+  var backBtnEl = el('<div class="pill">&larr; Back to Independent Study tasks</div>');
+  backBtnEl.addEventListener("click", istBackToList);
+  row.appendChild(backBtnEl);
+  app.appendChild(row);
+}
+
+function renderIsManageList(){
+  app.appendChild(el(
+    '<div class="banner">Independent Study tasks are shared &mdash; any teacher account can create, edit, or retarget them here. '+
+    'Each task gets its own deadline; pupils see it in their Independent Study tab as soon as it\'s shared with their class or them individually.</div>'
+  ));
+  var newBtn = el('<button class="btn big" id="istNewBtn">+ New Independent Study task</button>');
+  app.appendChild(newBtn);
+  newBtn.addEventListener("click", function(){ isTasksUi.mode = "create"; isTasksRerender(); });
+  app.appendChild(el('<div style="height:12px;"></div>'));
+
+  var tasks = isTasksUi.tasks.slice().sort(function(a,b){ return new Date(a.dueAt||0) - new Date(b.dueAt||0); });
+  if(tasks.length===0){
+    app.appendChild(el('<p class="muted">No Independent Study tasks yet — create one above.</p>'));
+    return;
+  }
+  app.appendChild(el('<div class="cathead">Your Independent Study tasks</div>'));
+  tasks.forEach(function(t){
+    var dueBit = t.dueAt ? (isTaskOverdue(t) ? "Was due " : "Due ") + fmtDueFull(t.dueAt) : "No deadline set";
+    var tl = el(
+      '<div class="tile"><div><div>'+esc(t.name)+'</div>'+
+      '<div class="sub">'+esc(dueBit)+' &middot; '+t.words.length+' word'+(t.words.length===1?'':'s')+' &middot; '+esc(isTaskTargetSummary(t))+'</div></div>'+
+      '<div class="chev">&rsaquo;</div></div>'
+    );
+    tl.addEventListener("click", function(){
+      isTasksUi.mode = "detail";
+      isTasksUi.taskId = t.id;
+      isTasksRerender();
+    });
+    app.appendChild(tl);
+  });
+}
+
+function renderIsManageCreate(){
+  app.appendChild(el('<div class="card"><b>Name the new task</b><p class="muted" style="margin-top:4px;">e.g. &ldquo;Unit 4 vocab test&rdquo; &mdash; you can rename it later. Add words, a deadline, and choose who sees it on the next screen.</p></div>'));
+  var card = el(
+    '<div class="card">'+
+      '<input type="text" id="istCreateInput" placeholder="e.g. Unit 4 vocab test" autofocus>'+
+      '<p class="muted" id="istCreateMsg" style="margin-top:6px; margin-bottom:0;"></p>'+
+      '<button class="btn big" id="istCreateBtn" style="margin-top:8px;">Create task</button>'+
+    '</div>'
+  );
+  app.appendChild(card);
+  var input = document.getElementById("istCreateInput");
+  var msg = document.getElementById("istCreateMsg");
+  function doCreate(){
+    var name = input.value.trim();
+    if(!name){
+      msg.textContent = "Give the task a name first.";
+      msg.style.color = "var(--red)";
+      return;
+    }
+    var id = genIsTaskId(name, isTasksUi.tasks);
+    var entry = {id:id, name:name, words:[], targetClasses:[], targetPupils:[], dueAt:null};
+    isTasksUi.tasks.push(entry);
+    saveIsTasksData(true);
+    isTasksUi.mode = "detail";
+    isTasksUi.taskId = id;
+    isTasksRerender();
+  }
+  document.getElementById("istCreateBtn").addEventListener("click", doCreate);
+  input.addEventListener("keydown", function(e){ if(e.key==="Enter") doCreate(); });
+  input.focus();
+  istBackLink();
+}
+
+function renderIsManageDetail(){
+  var task = getIsTask(isTasksUi.taskId);
+  if(!task){ istBackToList(); return; }
+  if(!task.targetClasses) task.targetClasses = [];
+  if(!task.targetPupils) task.targetPupils = [];
+
+  if(isTasksUi.flashMsg){
+    app.appendChild(el('<div class="banner">'+esc(isTasksUi.flashMsg)+'</div>'));
+    isTasksUi.flashMsg = null;
+  }
+
+  app.appendChild(el(
+    '<div class="card"><b id="istTitle">'+esc(task.name)+'</b>'+
+    '<p class="muted" id="istSub" style="margin-top:4px; margin-bottom:0;">'+task.words.length+' word'+(task.words.length===1?'':'s')+' &middot; '+esc(isTaskTargetSummary(task))+'</p></div>'
+  ));
+
+  var renameCard = el(
+    '<div class="card" id="istRenameCard" style="display:none;">'+
+      '<b>Rename this task</b>'+
+      '<input type="text" id="istRenameInput" style="margin-top:8px;">'+
+      '<div class="btn-row">'+
+        '<button class="btn secondary" id="istRenameCancel">Cancel</button>'+
+        '<button class="btn" id="istRenameConfirm">Save</button>'+
+      '</div>'+
+    '</div>'
+  );
+  app.appendChild(renameCard);
+
+  var manageRow = el(
+    '<div class="btn-row">'+
+      '<button class="btn secondary" id="istRenameBtn">Rename task</button>'+
+      '<button class="btn secondary" id="istDeleteBtn">Delete task</button>'+
+    '</div>'
+  );
+  app.appendChild(manageRow);
+
+  function updateSummary(){
+    var t = getIsTask(isTasksUi.taskId);
+    if(!t) return;
+    document.getElementById("istSub").textContent = t.words.length+' word'+(t.words.length===1?'':'s')+' · '+isTaskTargetSummary(t);
+  }
+
+  // ---- deadline ----
+  var dateVal = task.dueAt ? task.dueAt.slice(0,10) : "";
+  var timeVal = task.dueAt ? task.dueAt.slice(11,16) : IS_DEFAULT_TIME;
+  var deadlineCard = el(
+    '<div class="card">'+
+      '<b>Deadline</b>'+
+      '<p class="muted" style="margin-top:4px;">Shown to pupils as the task\'s due date. Defaults to 9:00am on whichever date you pick.</p>'+
+      '<div class="btn-row" style="margin-top:8px;">'+
+        '<input type="date" id="istDeadlineDate" value="'+esc(dateVal)+'">'+
+        '<input type="time" id="istDeadlineTime" value="'+esc(timeVal)+'">'+
+      '</div>'+
+      '<p class="muted" id="istDeadlineMsg" style="margin-top:6px; margin-bottom:0;"></p>'+
+    '</div>'
+  );
+  app.appendChild(deadlineCard);
+  var deadlineDateInput = document.getElementById("istDeadlineDate");
+  var deadlineTimeInput = document.getElementById("istDeadlineTime");
+  var deadlineMsg = document.getElementById("istDeadlineMsg");
+  function saveDeadline(){
+    var t = getIsTask(isTasksUi.taskId);
+    if(!t) return;
+    if(!deadlineDateInput.value){
+      t.dueAt = null;
+      deadlineMsg.textContent = "No deadline set.";
+      deadlineMsg.style.color = "var(--muted)";
+    } else {
+      if(!deadlineTimeInput.value) deadlineTimeInput.value = IS_DEFAULT_TIME;
+      t.dueAt = isDeadlineIso(deadlineDateInput.value, deadlineTimeInput.value);
+      deadlineMsg.textContent = "Due "+fmtDueFull(t.dueAt)+".";
+      deadlineMsg.style.color = "var(--green)";
+    }
+    saveIsTasksData(true);
+  }
+  deadlineDateInput.addEventListener("change", function(){
+    if(deadlineDateInput.value && !deadlineTimeInput.value) deadlineTimeInput.value = IS_DEFAULT_TIME;
+    saveDeadline();
+  });
+  deadlineTimeInput.addEventListener("change", saveDeadline);
+
+  // ---- words ----
+  var wordsCard = el('<div class="card"><b>Words in this task</b><div id="istWordItems" style="margin-top:8px;"></div></div>');
+  app.appendChild(wordsCard);
+  var wordWrap = wordsCard.querySelector("#istWordItems");
+  function refreshWords(){
+    wordWrap.innerHTML = "";
+    var t = getIsTask(isTasksUi.taskId);
+    if(!t || t.words.length===0){
+      wordWrap.appendChild(el('<p class="muted" style="margin:0;">No words yet — add some below.</p>'));
+      return;
+    }
+    t.words.forEach(function(w){
+      var row = el(
+        '<div class="wrow" style="margin-bottom:6px;">'+
+          '<div class="wtext"><span style="font-weight:700;">'+esc(w.fr)+'</span> <span class="muted">&mdash; '+esc(w.en)+'</span></div>'+
+          '<button class="del" type="button" title="Remove">&times;</button>'+
+        '</div>'
+      );
+      row.querySelector(".del").addEventListener("click", function(){
+        var t2 = getIsTask(isTasksUi.taskId);
+        if(!t2) return;
+        t2.words = t2.words.filter(function(x){ return x.id !== w.id; });
+        saveIsTasksData(true);
+        refreshWords();
+        updateSummary();
+      });
+      wordWrap.appendChild(row);
+    });
+  }
+  refreshWords();
+
+  var pasteCard = el(
+    '<div class="card">'+
+      '<b>Paste words from a spreadsheet</b>'+
+      '<p class="muted" style="margin-top:4px;">Paste two columns copied straight from Excel/Sheets (French, then English) — one word pair per line.</p>'+
+      '<textarea rows="4" id="istPasteInput" placeholder="bonjour&#9;hello&#10;merci&#9;thank you"></textarea>'+
+      '<button class="btn" id="istPasteBtn" style="margin-top:8px;">+ Add pasted words</button>'+
+      '<p class="muted" id="istPasteMsg" style="margin-top:6px; margin-bottom:0;"></p>'+
+    '</div>'
+  );
+  app.appendChild(pasteCard);
+  var pasteInput = document.getElementById("istPasteInput");
+  var pasteMsg = document.getElementById("istPasteMsg");
+  document.getElementById("istPasteBtn").addEventListener("click", function(){
+    var result = parseIsTaskPaste(pasteInput.value);
+    var t = getIsTask(isTasksUi.taskId);
+    if(!t) return;
+    if(result.words.length){
+      result.words.forEach(function(w){ t.words.push(w); });
+      saveIsTasksData(true);
+      pasteInput.value = "";
+      refreshWords();
+      updateSummary();
+    }
+    pasteMsg.textContent = result.words.length+" word"+(result.words.length===1?'':'s')+" added"+(result.skipped ? ", "+result.skipped+" line"+(result.skipped===1?'':'s')+" skipped (couldn't tell French from English)" : "")+".";
+    pasteMsg.style.color = result.words.length ? "var(--green)" : "var(--red)";
+  });
+
+  // "add one word at a time", with AQA-search autocomplete on the French box —
+  // a match fills both boxes from the master list as a convenience; it's not
+  // a link to that word, so a non-match just gets typed and added as-is.
+  var addCard = el(
+    '<div class="card">'+
+      '<b>Or add one word at a time</b>'+
+      '<p class="muted" style="margin-top:4px;">Start typing the French word — if it\'s on the AQA list you\'ll see a match to tap and autofill the English. If not, just finish typing both boxes yourself.</p>'+
+      '<input type="text" id="istFrInput" placeholder="French" style="margin-top:8px;" autocomplete="off">'+
+      '<div id="istAddSuggestions" style="margin-top:4px;"></div>'+
+      '<div class="accent-row" id="istAccentRow" style="margin-top:6px;"></div>'+
+      '<input type="text" id="istEnInput" placeholder="English" style="margin-top:8px;">'+
+      '<button class="btn" id="istAddBtn" style="margin-top:8px;">+ Add word</button>'+
+    '</div>'
+  );
+  app.appendChild(addCard);
+  var frInput = document.getElementById("istFrInput");
+  var enInput = document.getElementById("istEnInput");
+  var suggestWrap = document.getElementById("istAddSuggestions");
+  wireAccentRow(document.getElementById("istAccentRow"), frInput);
+  function refreshAddSuggestions(){
+    var q = frInput.value.trim();
+    suggestWrap.innerHTML = "";
+    if(!q) return;
+    var nq = normText(q);
+    var matches = Object.keys(WORD).filter(function(id){ return normText(WORD[id].fr).indexOf(nq)===0; });
+    var seenFr = {};
+    matches = matches.filter(function(id){ var fr = WORD[id].fr; if(seenFr[fr]) return false; seenFr[fr]=true; return true; }).slice(0,6);
+    if(matches.length===0) return;
+    matches.forEach(function(id){
+      var w = WORD[id];
+      var row = el('<div class="tile" style="padding:8px 12px; margin-bottom:6px;"><div><div>'+esc(w.fr)+'</div><div class="sub">'+esc(w.en)+'</div></div></div>');
+      row.addEventListener("click", function(){
+        frInput.value = w.fr;
+        enInput.value = w.en;
+        suggestWrap.innerHTML = "";
+        enInput.focus();
+      });
+      suggestWrap.appendChild(row);
+    });
+  }
+  frInput.addEventListener("input", refreshAddSuggestions);
+  function doAddWord(){
+    var fr = frInput.value.trim();
+    var en = enInput.value.trim();
+    if(!fr || !en) return;
+    var t = getIsTask(isTasksUi.taskId);
+    if(!t) return;
+    t.words.push({id: genIsWordId(), fr:fr, en:en});
+    saveIsTasksData(true);
+    frInput.value = ""; enInput.value = ""; suggestWrap.innerHTML = ""; frInput.focus();
+    refreshWords();
+    updateSummary();
+  }
+  document.getElementById("istAddBtn").addEventListener("click", doAddWord);
+  enInput.addEventListener("keydown", function(e){ if(e.key==="Enter") doAddWord(); });
+
+  // ---- target: classes ----
+  var classCard = el('<div class="card"><b>Share with classes</b><div id="istClassPicker" class="pill-row" style="margin-top:8px;"></div></div>');
+  app.appendChild(classCard);
+  var classPicker = classCard.querySelector("#istClassPicker");
+  if(!classesUi.classes || classesUi.classes.length===0){
+    classPicker.appendChild(el('<p class="muted" style="margin:0;">No classes yet — create one from Manage classes first, or target individual pupils below.</p>'));
+  } else {
+    classesUi.classes.slice().sort(function(a,b){ return a.name.localeCompare(b.name); }).forEach(function(c){
+      var t = getIsTask(isTasksUi.taskId);
+      var on = t.targetClasses.indexOf(c.id) > -1;
+      var pill = el('<div class="pill'+(on?' on':'')+'">'+esc(c.name)+'</div>');
+      pill.addEventListener("click", function(){
+        var t2 = getIsTask(isTasksUi.taskId);
+        if(!t2) return;
+        var idx = t2.targetClasses.indexOf(c.id);
+        if(idx>-1) t2.targetClasses.splice(idx,1); else t2.targetClasses.push(c.id);
+        pill.classList.toggle("on");
+        saveIsTasksData(true);
+        updateSummary();
+      });
+      classPicker.appendChild(pill);
+    });
+  }
+
+  // ---- target: individual pupils (search-as-you-type) ----
+  var pupilCard = el(
+    '<div class="card">'+
+      '<b>Share with individual pupils</b>'+
+      '<p class="muted" style="margin-top:4px;">Search by account code and pick from the matches.</p>'+
+      '<input type="text" id="istPupilSearch" placeholder="Start typing an account code..." autocomplete="off">'+
+      '<div id="istPupilSuggestions" style="margin-top:6px;"></div>'+
+      '<div class="pill-row" id="istPupilChips" style="margin-top:10px;"></div>'+
+    '</div>'
+  );
+  app.appendChild(pupilCard);
+  var searchInput = document.getElementById("istPupilSearch");
+  var pupilSuggestWrap = document.getElementById("istPupilSuggestions");
+  var chipsWrap = document.getElementById("istPupilChips");
+
+  function refreshChips(){
+    chipsWrap.innerHTML = "";
+    var t = getIsTask(isTasksUi.taskId);
+    if(!t) return;
+    t.targetPupils.slice().sort().forEach(function(code){
+      var chip = el('<div class="pill on">'+esc(code)+' &times;</div>');
+      chip.title = "Remove";
+      chip.addEventListener("click", function(){
+        var t2 = getIsTask(isTasksUi.taskId);
+        if(!t2) return;
+        t2.targetPupils = t2.targetPupils.filter(function(x){ return x!==code; });
+        saveIsTasksData(true);
+        refreshChips();
+        refreshPupilSuggestions();
+        updateSummary();
+      });
+      chipsWrap.appendChild(chip);
+    });
+  }
+  function refreshPupilSuggestions(){
+    var q = searchInput.value.trim().toLowerCase();
+    pupilSuggestWrap.innerHTML = "";
+    if(!q) return;
+    var t = getIsTask(isTasksUi.taskId);
+    if(!t) return;
+    var already = {};
+    t.targetPupils.forEach(function(c){ already[c] = true; });
+    var matches = ACCOUNTS.filter(function(a){
+      return a.indexOf(q)===0 && TEACHER_ACCOUNTS.indexOf(a)===-1 && !already[a];
+    }).slice(0,8);
+    if(matches.length===0){
+      pupilSuggestWrap.appendChild(el('<p class="muted" style="margin:4px 0 0;">No matching accounts.</p>'));
+      return;
+    }
+    matches.forEach(function(code){
+      var tl = el('<div class="tile" style="padding:8px 12px;"><div>'+esc(code)+'</div></div>');
+      tl.addEventListener("click", function(){
+        var t2 = getIsTask(isTasksUi.taskId);
+        if(!t2) return;
+        if(t2.targetPupils.indexOf(code)===-1) t2.targetPupils.push(code);
+        saveIsTasksData(true);
+        searchInput.value = "";
+        pupilSuggestWrap.innerHTML = "";
+        refreshChips();
+        updateSummary();
+        searchInput.focus();
+      });
+      pupilSuggestWrap.appendChild(tl);
+    });
+  }
+  searchInput.addEventListener("input", refreshPupilSuggestions);
+  refreshChips();
+
+  // ---- rename / delete ----
+  document.getElementById("istRenameBtn").addEventListener("click", function(){
+    var t = getIsTask(isTasksUi.taskId);
+    document.getElementById("istRenameInput").value = t ? t.name : "";
+    renameCard.style.display = "";
+    document.getElementById("istRenameInput").focus();
+  });
+  document.getElementById("istRenameCancel").addEventListener("click", function(){
+    renameCard.style.display = "none";
+  });
+  document.getElementById("istRenameConfirm").addEventListener("click", function(){
+    var name = document.getElementById("istRenameInput").value.trim();
+    if(!name) return;
+    var t = getIsTask(isTasksUi.taskId);
+    if(!t) return;
+    t.name = name;
+    saveIsTasksData(true);
+    renameCard.style.display = "none";
+    document.getElementById("istTitle").textContent = name;
+    updateSummary();
+  });
+  document.getElementById("istDeleteBtn").addEventListener("click", function(){
+    isTasksUi.tasks = isTasksUi.tasks.filter(function(x){ return x.id !== isTasksUi.taskId; });
+    saveIsTasksData(true);
+    istBackToList();
+  });
+
+  // ---- share ----
+  var shareRow = el('<div class="btn-row" style="margin-top:14px;"><button class="btn big" id="istShareBtn">&#128228; Share task</button></div>');
+  app.appendChild(shareRow);
+  var shareMsg = el('<p class="muted" id="istShareMsg"></p>');
+  app.appendChild(shareMsg);
+  document.getElementById("istShareBtn").addEventListener("click", function(){
+    var t = getIsTask(isTasksUi.taskId);
+    if(!t) return;
+    if(t.words.length===0){
+      shareMsg.textContent = "Add at least one word before sharing.";
+      shareMsg.style.color = "var(--red)";
+      return;
+    }
+    var recipients = isTaskRecipients(t);
+    if(recipients.length===0){
+      shareMsg.textContent = "Pick at least one class or pupil to share this with.";
+      shareMsg.style.color = "var(--red)";
+      return;
+    }
+    saveIsTasksData(true);
+    shareMsg.textContent = "Shared \""+t.name+"\" with "+recipients.length+" pupil"+(recipients.length===1?'':'s')+".";
+    shareMsg.style.color = "var(--green)";
+  });
+
+  istBackLink();
+}
+
+// ---- Pupil view of Independent Study tasks ----
+// Same targeting/loading shape as teacher vocab lists (myTeacherListsUi
+// above), plus a dueAt deadline. Own IS_WORD dict / "is_" id prefix keeps
+// ratings independent of AQA/teacher-list words, same reasoning as TEACHER_WORD.
+var myIsTasksUi = {tasks: null, loading: false, error: null};
+var IS_WORD = {}; // id -> {fr,en,taskId,taskName}, rebuilt whenever myIsTasksUi.tasks refreshes
+// screen: "detail" (Learn/Test buttons) or "learn" (Digital/Paper choice)
+var isDetailUi = {taskId: null, screen: "detail"};
+
+function loadMyIsTasks(onReady){
+  if(!ACCOUNT) return;
+  myIsTasksUi.loading = true;
+  myIsTasksUi.error = null;
+  Promise.all([
+    fetch("/api/classes?account="+encodeURIComponent(ACCOUNT)).then(function(r){ return r.ok ? r.json() : Promise.reject(new Error("bad response")); }),
+    fetch("/api/independent-study?account="+encodeURIComponent(ACCOUNT)).then(function(r){ return r.ok ? r.json() : Promise.reject(new Error("bad response")); })
+  ]).then(function(results){
+    var allClasses = (results[0] && results[0].classes) || [];
+    var allTasks = (results[1] && results[1].tasks) || [];
+    var myClassIds = {};
+    allClasses.forEach(function(c){ if(c.members.indexOf(ACCOUNT)>-1) myClassIds[c.id] = true; });
+    var mine = allTasks.filter(function(t){
+      var inClass = (t.targetClasses||[]).some(function(cid){ return myClassIds[cid]; });
+      var direct = (t.targetPupils||[]).indexOf(ACCOUNT) > -1;
+      return inClass || direct;
+    });
+    myIsTasksUi.tasks = mine;
+    myIsTasksUi.loading = false;
+    IS_WORD = {};
+    mine.forEach(function(t){ (t.words||[]).forEach(function(w){ IS_WORD[w.id] = {fr:w.fr, en:w.en, taskId:t.id, taskName:t.name}; }); });
+    if(onReady) onReady();
+  }).catch(function(e){
+    myIsTasksUi.loading = false;
+    myIsTasksUi.tasks = []; // stops the "tasks === null" check below from re-triggering an endless retry loop
+    myIsTasksUi.error = "Couldn't load your Independent Study tasks — check you're online and try again.";
+    if(onReady) onReady();
+  });
+}
+function getMyIsTask(id){ return (myIsTasksUi.tasks||[]).filter(function(t){ return t.id===id; })[0] || null; }
+
+function fmtDueLabel(dueAt){
+  try{
+    var d = new Date(dueAt);
+    if(isNaN(d.getTime())) return "";
+    return d.toLocaleDateString(undefined, {weekday:"short"}) + " " + d.getDate() + "/" + (d.getMonth()+1);
+  }catch(e){ return ""; }
+}
+function fmtDueFull(dueAt){
+  try{
+    var d = new Date(dueAt);
+    if(isNaN(d.getTime())) return "";
+    return d.toLocaleDateString(undefined, {weekday:"long", day:"numeric", month:"long"}) + " at " + d.toLocaleTimeString(undefined, {hour:"numeric", minute:"2-digit"});
+  }catch(e){ return ""; }
+}
+function isTaskOverdue(task){
+  if(!task || !task.dueAt) return false;
+  var d = new Date(task.dueAt);
+  return !isNaN(d.getTime()) && d.getTime() < Date.now();
+}
+
+var ISPUPIL_INFO_HTML =
+  '<h3>Independent Study</h3>'+
+  '<p>Your teacher sets Independent Study tasks here ahead of a vocab test in class, each with its own word list and deadline. Tasks are listed by deadline — once a deadline has passed the task greys out, but you can still open it any time to keep practising.</p>'+
+  '<p>Open a task and choose <b>Learn</b> to go straight into flashcards for that word list (digital or paper), or <b>Test</b> for a quick 10-word check with no setup.</p>';
+
+function renderIndependentStudy(){
+  titleEl.textContent = "Independent Study";
+  setInfoButton(ISPUPIL_INFO_HTML);
+  if(myIsTasksUi.tasks === null){
+    if(!myIsTasksUi.loading) loadMyIsTasks(function(){ render(); });
+    app.appendChild(el('<p class="muted" style="margin-top:14px;">Loading your Independent Study tasks&hellip;</p>'));
+    return;
+  }
+  if(myIsTasksUi.error){
+    app.appendChild(el('<div class="card"><b>Couldn\'t load tasks</b><p class="muted">'+esc(myIsTasksUi.error)+'</p></div>'));
+    var retryBtn = el('<button class="btn secondary">Try again</button>');
+    retryBtn.addEventListener("click", function(){ myIsTasksUi.tasks=null; myIsTasksUi.error=null; render(); });
+    app.appendChild(retryBtn);
+    return;
+  }
+  if(myIsTasksUi.tasks.length===0){
+    app.appendChild(el('<div class="card"><b>Nothing set yet</b><p class="muted">Your teacher hasn\'t set any Independent Study tasks for you yet — check back nearer your next vocab test.</p></div>'));
+    return;
+  }
+  var tasks = myIsTasksUi.tasks.slice().sort(function(a,b){ return new Date(a.dueAt||0) - new Date(b.dueAt||0); });
+  tasks.forEach(function(t){
+    var overdue = isTaskOverdue(t);
+    var dueLabel = t.dueAt ? ((overdue?"Was due ":"Due ") + fmtDueLabel(t.dueAt)) : "No deadline set";
+    var tileEl = el(
+      '<div class="tile'+(overdue?' is-past':'')+'"><div><div>'+esc(t.name)+'</div>'+
+      '<div class="sub">'+esc(dueLabel)+' &middot; '+t.words.length+' word'+(t.words.length===1?'':'s')+'</div></div>'+
+      '<div class="chev">&rsaquo;</div></div>'
+    );
+    tileEl.addEventListener("click", function(){ isDetailUi = {taskId:t.id, screen:"detail"}; go("independentStudyTask", t.id); });
+    app.appendChild(tileEl);
+  });
+}
+
+function renderIsTaskScreen(taskId){
+  if(myIsTasksUi.tasks === null){
+    titleEl.textContent = "Independent Study";
+    if(!myIsTasksUi.loading) loadMyIsTasks(function(){ render(); });
+    app.appendChild(el('<p class="muted" style="margin-top:14px;">Loading&hellip;</p>'));
+    return;
+  }
+  var task = getMyIsTask(taskId);
+  if(!task){
+    titleEl.textContent = "Independent Study";
+    app.appendChild(el('<div class="card"><b>Task not found</b><p class="muted">This task may no longer be shared with you.</p></div>'));
+    var backNF = el('<button class="btn secondary">&larr; Back to Independent Study</button>');
+    backNF.addEventListener("click", function(){ go("independentStudy", null); });
+    app.appendChild(backNF);
+    return;
+  }
+  titleEl.textContent = task.name;
+  setInfoButton(ISPUPIL_INFO_HTML);
+  if(isDetailUi.taskId !== taskId){ isDetailUi = {taskId:taskId, screen:"detail"}; }
+  if(isDetailUi.screen === "learn") renderIsLearnOptions(task);
+  else renderIsTaskMain(task);
+}
+
+function renderIsTaskMain(task){
+  var overdue = isTaskOverdue(task);
+  app.appendChild(el(
+    '<div class="card"><b>'+esc(task.name)+'</b>'+
+    '<p class="muted" style="margin-top:6px; margin-bottom:0;">'+
+      (task.dueAt ? ((overdue?'Was due ':'Due ')+esc(fmtDueFull(task.dueAt))) : 'No deadline set')+
+      ' &middot; '+task.words.length+' word'+(task.words.length===1?'':'s')+
+    '</p></div>'
+  ));
+  var learnTile = el('<div class="tile"><div><div>&#127891; Learn (Generate Flashcards)</div><div class="sub">Straight into digital or paper flashcards for this set</div></div><div class="chev">&rsaquo;</div></div>');
+  learnTile.addEventListener("click", function(){ isDetailUi.screen = "learn"; render(); window.scrollTo(0,0); });
+  app.appendChild(learnTile);
+  var testTile = el('<div class="tile"><div><div>&#128221; Test (Quick 10)</div><div class="sub">10 words, straight in &mdash; French to English</div></div><div class="chev">&rsaquo;</div></div>');
+  testTile.addEventListener("click", function(){
+    if(task.words.length===0) return;
+    q10Wizard = {type:"isTask", isTaskId:task.id, colors:null, theme:null, difficulty:null, direction:"fr", customListId:null, personalSetId:null, teacherListId:null, headerTitle:"Independent Study"};
+    generateIsTaskQuick10("fr", task.id);
+    q10ShowResults = true;
+    render(); window.scrollTo(0,0);
+  });
+  app.appendChild(testTile);
+  if(task.words.length===0){
+    app.appendChild(el('<p class="muted">This task doesn\'t have any words in it yet — check back once your teacher\'s added some.</p>'));
+  }
+  var backRow = el('<div class="pill-row" style="margin-top:14px;"></div>');
+  var backPill = el('<div class="pill">&larr; Back to Independent Study</div>');
+  backPill.addEventListener("click", function(){ go("independentStudy", null); });
+  backRow.appendChild(backPill);
+  app.appendChild(backRow);
+}
+
+function renderIsLearnOptions(task){
+  app.appendChild(el(
+    '<div class="card"><b>Learn &mdash; '+esc(task.name)+'</b>'+
+    '<p class="muted" style="margin-top:4px;">Pick how you want to go through these '+task.words.length+' word'+(task.words.length===1?'':'s')+'.</p></div>'
+  ));
+  var msg = el('<p class="muted"></p>');
+  var digitalTile = el('<div class="tile"><div><div>Digital Flashcards</div><div class="sub">Flip through on your phone, rate as you go</div></div><div class="chev">&rsaquo;</div></div>');
+  digitalTile.addEventListener("click", function(){
+    if(task.words.length===0){ msg.textContent = "This task has no words yet."; msg.style.color = "var(--red)"; return; }
+    var items = task.words.map(function(w){ return {id:w.id, fr:w.fr, en:w.en}; });
+    fcWizard.type = "isTask"; fcWizard.isTaskId = task.id; fcWizard.mode = "digital";
+    fcWizard.direction = "fr2en"; fcWizard.count = "all"; fcWizard.luckyDip = false;
+    startDigitalSession(shuffledCopy(items), "fr2en", true, {showDirectionToggle:true, headerTitle:"Independent Study"});
+  });
+  app.appendChild(digitalTile);
+  var paperTile = el('<div class="tile"><div><div>Paper Flashcards</div><div class="sub">Generate a PDF of all '+task.words.length+' words to print, cut and fold</div></div><div class="chev">&rsaquo;</div></div>');
+  paperTile.addEventListener("click", function(){
+    if(task.words.length===0){ msg.textContent = "This task has no words yet."; msg.style.color = "var(--red)"; return; }
+    var items = task.words.map(function(w){ return {fr:w.fr, en:w.en}; });
+    buildFlashcardPrintArea(items);
+    window.print();
+    msg.textContent = "Printing "+items.length+" flashcards. Didn't see the print dialog? Tap Paper Flashcards again.";
+    msg.style.color = "var(--green)";
+  });
+  app.appendChild(paperTile);
+  app.appendChild(msg);
+  var backRow = el('<div class="pill-row" style="margin-top:14px;"></div>');
+  var backPill = el('<div class="pill">&larr; Back</div>');
+  backPill.addEventListener("click", function(){ isDetailUi.screen = "detail"; render(); window.scrollTo(0,0); });
+  backRow.appendChild(backPill);
+  app.appendChild(backRow);
+}
+
 // ---- Pupil view of teacher vocab lists (Phase 5) ----
 // Read-only from a pupil's perspective: which lists target me (via my class
 // membership or being individually targeted), with full R/A/G rating and
@@ -4354,7 +5113,7 @@ function loadMyTeacherLists(onReady){
 
 // looks up a word by id across AQA (WORD) first, then teacher-list words —
 // used anywhere a quiz/print item might come from either source.
-function resolveVocabWord(id){ return WORD[id] || TEACHER_WORD[id] || null; }
+function resolveVocabWord(id){ return WORD[id] || TEACHER_WORD[id] || IS_WORD[id] || null; }
 
 function getMyTeacherList(id){ return (myTeacherListsUi.lists||[]).filter(function(l){ return l.id===id; })[0] || null; }
 
@@ -4546,6 +5305,9 @@ function fcSummaryLines(){
     if(fcWizard.colors.A) names2.push("Amber");
     if(fcWizard.colors.G) names2.push("Green");
     lines.push(names2.join(" + ")+" words");
+  } else if(fcWizard.type==="isTask"){
+    var ist = getMyIsTask(fcWizard.isTaskId);
+    lines = ["Independent Study", ist ? ist.name : ""];
   } else {
     lines = ["Verbs", verbDifficultyLabels()[fcWizard.difficulty]];
   }
@@ -5082,18 +5844,25 @@ function cancelScheduledDigitalAdvance(){
   fcDigital.advancing = false;
 }
 
-function startDigitalSession(deckItems, direction, ratable){
+// opts: {showDirectionToggle, headerTitle} — both optional, used by
+// Independent Study's Learn screen (mid-session French<->English toggle,
+// and "Independent Study" in the header instead of "Flashcards"). Every
+// existing call site omits opts, so behaviour there is unchanged.
+function startDigitalSession(deckItems, direction, ratable, opts){
+  opts = opts || {};
   var deck = deckItems.slice();
   fcDigital = {
     active:true, ended:false, advancing:false, deck:deck, items:deck.slice(),
     direction:direction||"fr2en", ratable:!!ratable,
-    idx:0, revealed:false, lap:1, totalSeen:0, sessionRatings:{}
+    idx:0, revealed:false, lap:1, totalSeen:0, sessionRatings:{},
+    showDirectionToggle: !!opts.showDirectionToggle, headerTitle: opts.headerTitle || null
   };
   fcRerender();
 }
 function exitDigitalSession(){
   cancelScheduledDigitalAdvance();
   fcResetWizard();
+  isDetailUi.screen = "detail"; // no-op unless this session was launched from Independent Study
   fcRerender();
 }
 function digitalRestart(){
@@ -5146,6 +5915,25 @@ function renderDigitalSession(){
 
   if(fcDigital.ended){ renderDigitalFinish(); return; }
   if(fcDigital.items.length===0){ renderDigitalFinish(); return; }
+
+  if(fcDigital.showDirectionToggle){
+    var dirToggle = el(
+      '<div class="segmented" style="margin-bottom:2px;">'+
+        '<button data-dir="fr2en" class="'+(fcDigital.direction==="fr2en"?"active":"")+'">French &rarr; English</button>'+
+        '<button data-dir="en2fr" class="'+(fcDigital.direction==="en2fr"?"active":"")+'">English &rarr; French</button>'+
+      '</div>'
+    );
+    dirToggle.querySelectorAll("button").forEach(function(b){
+      b.addEventListener("click", function(){
+        if(fcDigital.direction===b.dataset.dir) return;
+        cancelScheduledDigitalAdvance();
+        fcDigital.direction = b.dataset.dir;
+        fcDigital.revealed = false;
+        render();
+      });
+    });
+    app.appendChild(dirToggle);
+  }
 
   if(fcDigital.lap>1 && fcDigital.ratable){
     app.appendChild(el('<div class="banner">&#128257; Round '+fcDigital.lap+' &mdash; focusing on red &amp; amber words, with green words mixed in.</div>'));
@@ -27876,6 +28664,16 @@ function generateTeacherListQuick10(dir, teacherListId){
   quick10SetItems(chosen, dir==="fr" ? "fr2en" : "en2fr");
 }
 
+// Independent Study "Test (Quick 10)": no options to pick, no rating filter —
+// just 10 random words from the task's own set, straight away.
+function generateIsTaskQuick10(dir, taskId){
+  var task = getMyIsTask(taskId);
+  var words = task ? task.words.slice() : [];
+  shuffleArr(words);
+  var chosen = words.slice(0,10).map(function(w){ return {type:"vocab", id:w.id}; });
+  quick10SetItems(chosen, dir==="fr" ? "fr2en" : "en2fr");
+}
+
 function generateVerbQuick10(dir, difficulty){
   var cfg = verbQuick10Config(difficulty);
   var pool = [];
@@ -27963,6 +28761,8 @@ function q10RunGenerate(){
     state.quick10Colors = q10Wizard.colors;
     saveState();
     generateTeacherListQuick10(q10Wizard.direction, q10Wizard.teacherListId);
+  } else if(q10Wizard.type==="isTask"){
+    generateIsTaskQuick10(q10Wizard.direction, q10Wizard.isTaskId);
   } else {
     generateVerbQuick10(q10Wizard.direction, q10Wizard.difficulty);
   }
@@ -28168,7 +28968,27 @@ function renderQuick10Wizard(){
 }
 
 function renderQuick10Results(){
-  app.appendChild(el('<div class="banner">'+esc(q10SummaryLines().join(" · "))+'</div>'));
+  if(q10Wizard.type==="isTask"){
+    var ist2 = getMyIsTask(q10Wizard.isTaskId);
+    var dirToggle10 = el(
+      '<div class="segmented" style="margin-bottom:6px;">'+
+        '<button data-dir="fr" class="'+(q10Wizard.direction==="fr"?"active":"")+'">French &rarr; English</button>'+
+        '<button data-dir="en" class="'+(q10Wizard.direction==="en"?"active":"")+'">English &rarr; French</button>'+
+      '</div>'
+    );
+    dirToggle10.querySelectorAll("button").forEach(function(b){
+      b.addEventListener("click", function(){
+        if(q10Wizard.direction===b.dataset.dir) return;
+        q10Wizard.direction = b.dataset.dir;
+        generateIsTaskQuick10(q10Wizard.direction, q10Wizard.isTaskId);
+        q10Rerender();
+      });
+    });
+    app.appendChild(dirToggle10);
+    app.appendChild(el('<div class="banner">Independent Study &middot; '+esc(ist2 ? ist2.name : "")+'</div>'));
+  } else {
+    app.appendChild(el('<div class="banner">'+esc(q10SummaryLines().join(" · "))+'</div>'));
+  }
 
   if(quick10Items.length===0){
     app.appendChild(el('<p class="muted">No matching words for those options — go back and try different choices.</p>'));
@@ -28216,15 +29036,28 @@ function renderQuick10Results(){
   regenBtn.addEventListener("click", function(){
     if(q10Wizard.type==="vocab"){
       generateVocabQuick10(q10Wizard.direction, q10Wizard.theme);
+    } else if(q10Wizard.type==="isTask"){
+      generateIsTaskQuick10(q10Wizard.direction, q10Wizard.isTaskId);
     } else {
       generateVerbQuick10(q10Wizard.direction, q10Wizard.difficulty);
     }
     q10Rerender();
   });
   actionsRow.appendChild(regenBtn);
-  var changeBtn = el('<button class="btn secondary">Change my Quick 10 options</button>');
-  changeBtn.addEventListener("click", q10Restart);
-  actionsRow.appendChild(changeBtn);
+  if(q10Wizard.type==="isTask"){
+    var backToTaskBtn = el('<button class="btn secondary">&larr; Back to task</button>');
+    backToTaskBtn.addEventListener("click", function(){
+      q10ShowResults = false;
+      q10Wizard = {type:null, colors:null, theme:null, difficulty:null, direction:null, customListId:null, personalSetId:null, teacherListId:null, isTaskId:null, headerTitle:null};
+      isDetailUi.screen = "detail";
+      q10Rerender();
+    });
+    actionsRow.appendChild(backToTaskBtn);
+  } else {
+    var changeBtn = el('<button class="btn secondary">Change my Quick 10 options</button>');
+    changeBtn.addEventListener("click", q10Restart);
+    actionsRow.appendChild(changeBtn);
+  }
   app.appendChild(actionsRow);
 }
 
@@ -28297,20 +29130,23 @@ function renderSync(){
   if(isTeacher()){
     var teacherCard = el(
       '<div class="card"><b>&#128105;&#8205;&#127979; Teacher tools</b>'+
-      '<p class="muted" style="margin-top:6px;">Manage classes/rosters and vocab lists below. Vocab lists can be targeted to classes or individual pupils, but pupils won\'t see them yet — that arrives with the bigger Vocab section rework. Pupil analytics is also coming in a future round.</p></div>'
+      '<p class="muted" style="margin-top:6px;">Manage classes/rosters, vocab lists, and Independent Study tasks below. Vocab lists can be targeted to classes or individual pupils, but pupils won\'t see them yet — that arrives with the bigger Vocab section rework. Pupil analytics is also coming in a future round.</p></div>'
     );
     app.appendChild(teacherCard);
     var teacherBtnRow = el(
-      '<div class="btn-row" style="margin-top:8px;">'+
+      '<div class="btn-row" style="margin-top:8px; flex-wrap:wrap;">'+
         '<button class="btn">Manage classes</button>'+
         '<button class="btn">Manage vocab lists</button>'+
+        '<button class="btn">Manage Independent Study</button>'+
       '</div>'
     );
     teacherCard.appendChild(teacherBtnRow);
     var manageClassesBtn = teacherBtnRow.children[0];
     var manageListsBtn = teacherBtnRow.children[1];
+    var manageIsBtn = teacherBtnRow.children[2];
     manageClassesBtn.addEventListener("click", function(){ enterClassesScreen(); });
     manageListsBtn.addEventListener("click", function(){ enterTeacherListsScreen(); });
+    manageIsBtn.addEventListener("click", function(){ enterIsTasksScreen(); });
     app.appendChild(el('<div style="height:12px;"></div>'));
   }
 
