@@ -227,6 +227,11 @@
   .saved-list-tile{display:flex; align-items:center; justify-content:space-between; gap:10px;}
   .del{flex-shrink:0; background:none; border:none; color:var(--red); font-weight:800; font-size:18px; padding:4px 8px; line-height:1;}
   textarea, input[type=text]{width:100%; border:2px solid var(--border); border-radius:10px; padding:10px; font-size:var(--fs-text); font-family:inherit;}
+  /* Buttons don't inherit font-family from body by default in any browser —
+     without this they silently fall back to the OS UI font (Segoe UI/Roboto/
+     San Francisco) instead of Inter, which reads as "shorter and bolder"
+     than the rest of the site (25 Aug 2026). */
+  button{font-family:inherit;}
   .muted{color:var(--muted); font-size:var(--fs-subtext); line-height:1.5;}
   .qr-wrap{display:flex; justify-content:center; margin:14px 0;}
   .qr-wrap svg{background:#fff; padding:10px; border-radius:12px; border:1px solid var(--border);}
@@ -3863,7 +3868,7 @@ function renderClassDetail(){
   app.appendChild(renameCard);
 
   var manageRow = el(
-    '<div class="btn-row" style="flex-wrap:wrap;">'+
+    '<div class="btn-row" style="flex-wrap:wrap; margin-bottom:12px;">'+
       '<button class="btn secondary" id="clRenameBtn">Rename class</button>'+
       '<button class="btn secondary" id="clDeleteBtn">Delete class</button>'+
       '<button class="btn secondary" id="clStreaksBtn">&#128293; Streaks &amp; activity</button>'+
@@ -3898,13 +3903,30 @@ function renderClassDetail(){
     }
     cc.members.slice().sort().forEach(function(code){
       var row = el(
-        '<div class="wrow" style="margin-bottom:6px;">'+
+        '<div class="wrow" style="margin-bottom:6px; align-items:center;">'+
           '<div class="wtext" style="cursor:pointer;">'+acctLabel(code)+'</div>'+
+          '<input type="text" class="pnInline" placeholder="Add name" maxlength="40" '+
+            'style="width:100px; flex-shrink:0; padding:6px 8px; font-size:var(--fs-subtext); border-radius:8px;" '+
+            'value="'+esc(PUPIL_NAMES[code]||"")+'">'+
           '<button class="del" type="button" title="Remove">&times;</button>'+
         '</div>'
       );
       row.querySelector(".wtext").addEventListener("click", function(){
         openPupilDetail(code, classesRerender);
+      });
+      var nameInput = row.querySelector(".pnInline");
+      var savedValue = PUPIL_NAMES[code]||"";
+      function saveInlineName(){
+        var val = nameInput.value.trim();
+        if(val === savedValue) return;
+        savePupilName(code, val, function(ok){
+          if(ok){ savedValue = val; refreshMembers(); }
+          else { nameInput.value = savedValue; }
+        });
+      }
+      nameInput.addEventListener("blur", saveInlineName);
+      nameInput.addEventListener("keydown", function(e){
+        if(e.key==="Enter"){ e.preventDefault(); nameInput.blur(); }
       });
       row.querySelector(".del").addEventListener("click", function(){
         var cc2 = getClass(classesUi.classId);
@@ -4267,7 +4289,7 @@ function renderTeacherListDetail(){
   app.appendChild(renameCard);
 
   var manageRow = el(
-    '<div class="btn-row" style="flex-wrap:wrap;">'+
+    '<div class="btn-row" style="flex-wrap:wrap; margin-bottom:12px;">'+
       '<button class="btn secondary" id="tlRenameBtn">Rename list</button>'+
       '<button class="btn secondary" id="tlDeleteBtn">Delete list</button>'+
       '<button class="btn secondary" id="tlAnalyticsBtn">&#128202; Analytics</button>'+
@@ -4752,7 +4774,7 @@ function renderIsManageDetail(){
   app.appendChild(renameCard);
 
   var manageRow = el(
-    '<div class="btn-row" style="flex-wrap:wrap;">'+
+    '<div class="btn-row" style="flex-wrap:wrap; margin-bottom:12px;">'+
       '<button class="btn secondary" id="istRenameBtn">Rename task</button>'+
       '<button class="btn secondary" id="istDeleteBtn">Delete task</button>'+
       '<button class="btn secondary" id="istAnalyticsBtn">&#128202; Analytics</button>'+
