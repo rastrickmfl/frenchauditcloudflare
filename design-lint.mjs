@@ -293,9 +293,24 @@ const SCREENS = [
     },
   },
   {
-    name: 'Class streaks & activity',
+    // Generalized 25 Aug 2026 from a per-class-only list into the shared
+    // sortable/searchable Pupils table — this entry point opens it
+    // pre-filtered to one class.
+    name: 'Pupils (filtered to one class)',
     run: async (page) => {
       await page.click('button:has-text("Streaks")');
+      await page.waitForTimeout(300);
+    },
+  },
+  {
+    // Same screen, reached from Settings with no class pre-selected — the
+    // "All classes" scope, plus the class-filter <select> and search
+    // <input> that only exist on this screen.
+    name: 'Pupils (all classes, from Settings)',
+    run: async (page) => {
+      await page.click('nav.tabbar button[data-route="sync"]');
+      await page.waitForTimeout(200);
+      await page.click('button:has-text("Pupils")');
       await page.waitForTimeout(300);
     },
   },

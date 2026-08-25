@@ -240,6 +240,17 @@
      rendered-font-family check (25 Aug 2026). */
   input, select{font-family:inherit;}
   .muted{color:var(--muted); font-size:var(--fs-subtext); line-height:1.5;}
+  /* Teacher: unified Pupils table (25 Aug 2026) — a real <table>, wrapped so
+     it scrolls horizontally on a narrow phone instead of squashing columns
+     or overflowing the page. */
+  .pupils-table-wrap{overflow-x:auto; -webkit-overflow-scrolling:touch; margin-bottom:12px;}
+  .pupils-table{width:100%; min-width:520px; border-collapse:collapse; background:var(--card); border:1px solid var(--border); border-radius:14px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,.04);}
+  .pupils-table th, .pupils-table td{padding:10px 12px; text-align:left; font-size:var(--fs-text); font-weight:var(--fw-text); border-bottom:1px solid var(--border); white-space:nowrap;}
+  .pupils-table thead th{background:var(--tint); color:var(--purple); font-size:var(--fs-eyebrow); font-weight:800; text-transform:uppercase; letter-spacing:.03em; cursor:pointer; user-select:none;}
+  .pupils-table tbody tr:last-child td{border-bottom:none;}
+  .pupils-table td.pt-link{cursor:pointer; color:var(--purple); font-weight:600;}
+  .pupils-table td.pt-name-cell{white-space:normal;}
+  .pupils-table .pt-name-input{width:110px; padding:6px 8px; font-size:var(--fs-subtext); border-radius:8px;}
   .qr-wrap{display:flex; justify-content:center; margin:14px 0;}
   .qr-wrap svg{background:#fff; padding:10px; border-radius:12px; border:1px solid var(--border);}
   nav.tabbar{
@@ -3002,6 +3013,16 @@ function logOut(){
   TEACHER_WORD = {};
   vocabOpenCategory = null;
   currentTeacherListId = null;
+  // These two are per-pupil-account caches (streak completion state, and
+  // which Independent Study tasks apply to this account) that were never
+  // being cleared here — so logging in as a different account right after
+  // another one had, say, completed today's streak session would keep
+  // showing that completed/cached state until a full page reload. Reset
+  // them on every logout so the next login always fetches fresh.
+  myStreakUi = {loading:false, data:null, error:null};
+  myIsTasksUi = {tasks: null, loading: false, error: null};
+  IS_WORD = {};
+  isDetailUi = {taskId: null, screen: "detail"};
   render();
   window.scrollTo(0,0);
 }
@@ -3679,7 +3700,7 @@ function buildClassCsv(c){
 }
 
 function renderClasses(){
-  titleEl.textContent = "Classes";
+  titleEl.textContent = (classesUi.mode === "pupils") ? "Pupils" : "Classes";
   if(!isTeacher()){
     app.appendChild(el('<div class="card"><b>Teacher accounts only</b><p class="muted">This page is for managing pupil classes and rosters, and is only available to teacher accounts.</p></div>'));
     return;
@@ -3698,7 +3719,7 @@ function renderClasses(){
   }
   if(classesUi.mode === "detail") renderClassDetail();
   else if(classesUi.mode === "create") renderClassCreate();
-  else if(classesUi.mode === "streaks") renderClassStreaks();
+  else if(classesUi.mode === "pupils") renderPupilsTable();
   else renderClassList();
 }
 
@@ -3718,42 +3739,226 @@ function fmtRelativeTime(iso){
   }catch(e){ return "unknown"; }
 }
 
-function renderClassStreaks(){
-  var c = getClass(classesUi.classId);
-  if(!c){ clBackToList(); return; }
-  app.appendChild(el('<div class="card"><b>&#128293; Streaks &amp; activity &mdash; '+esc(c.name)+'</b>'+
-    '<p class="muted" style="margin-top:4px; margin-bottom:0;">Current daily streak and last time seen, for each pupil in this class.</p></div>'));
-  var key = "class:"+c.id;
-  if(analyticsUi.key !== key){
-    if(!analyticsUi.loading) loadClassAnalytics(key, c.members, classesRerender);
-    app.appendChild(el('<div class="card"><p class="muted" style="margin:0;">Loading&hellip;</p></div>'));
-  } else if(analyticsUi.error){
-    app.appendChild(el('<div class="card"><p style="margin:0; color:var(--red);">'+esc(analyticsUi.error)+'</p></div>'));
+// ---- Teacher: unified Pupils table (25 Aug 2026) ----
+// One sortable, searchable table of pupils — filterable to a single class or
+// "All classes" (the union of every class's members, de-duplicated) —
+// replacing the old per-class-only "Streaks & activity" list below, since
+// looking a pupil up or naming them shouldn't require already knowing which
+// class they're in. Reuses the same bulk /api/pupil-analytics call and
+// analyticsUi cache the old screen used (streak, last-5 logins, display
+// name) — no backend change needed.
+var pupilsTableUi = {classFilter:null, search:"", sortBy:"streak", sortDir:"desc"};
+
+// classId: pre-filter to one class (and "Back" returns to that class's detail
+// screen); pass null/omit to open on "All classes" (and "Back" returns to
+// the class list) — used both from a class's own "Streaks & activity"
+// button and from the standalone "Pupils" entry point in Settings.
+function enterPupilsScreen(classId){
+  classesUi = {mode:"pupils", classes:null, loading:false, error:null, classId: classId||null, flashMsg:null};
+  pupilsTableUi.classFilter = classId || null;
+  pupilsTableUi.search = "";
+  go("classes", null);
+}
+
+function ptSortValue(row, key){
+  if(key==="name") return (row.name||"").toLowerCase();
+  if(key==="username") return row.account;
+  if(key==="lastLogin") return row.lastLoginMs;
+  if(key==="streak") return row.streak.current;
+  return "";
+}
+function ptDefaultDir(key){ return (key==="name" || key==="username") ? "asc" : "desc"; }
+var PT_COL_LABELS = {name:"Pupil name", username:"Username", lastLogin:"Last login", streak:"Streak"};
+
+function renderPupilsTable(){
+  var allClasses = classesUi.classes.slice().sort(function(a,b){ return a.name.localeCompare(b.name); });
+  if(pupilsTableUi.classFilter && !getClass(pupilsTableUi.classFilter)){ pupilsTableUi.classFilter = null; } // class was deleted since — fall back to All
+  var filterClass = pupilsTableUi.classFilter ? getClass(pupilsTableUi.classFilter) : null;
+
+  var scopeAccounts;
+  if(filterClass){
+    scopeAccounts = filterClass.members.slice();
   } else {
-    var pupils = analyticsUi.pupils || {};
-    var rows = c.members.slice().map(function(acct){
-      var p = pupils[acct] || {};
-      var streak = p.streak || {current:0, longest:0};
-      var logins = p.logins || [];
-      return {account:acct, streak:streak, lastSeen: logins.length ? fmtRelativeTime(logins[0]) : "never logged in"};
-    }).sort(function(a,b){ return b.streak.current - a.streak.current; });
-    var html = '<div class="card">';
-    rows.forEach(function(r){
-      html += '<div class="wrow" style="margin-bottom:6px;">'+
-        '<div class="wtext pd-link" data-acct="'+esc(r.account)+'" style="cursor:pointer;">'+acctLabel(r.account)+'<div class="muted">Last seen: '+esc(r.lastSeen)+'</div></div>'+
-        '<div style="text-align:right; white-space:nowrap;"><div style="font-weight:800; color:#8A6A00;">&#128293; '+r.streak.current+'</div><div class="muted">best '+r.streak.longest+'</div></div>'+
-        '</div>';
+    var seen = {};
+    scopeAccounts = [];
+    allClasses.forEach(function(c){
+      c.members.forEach(function(m){ if(!seen[m]){ seen[m]=true; scopeAccounts.push(m); } });
     });
-    html += '</div>';
-    var streaksCard = el(html);
-    streaksCard.querySelectorAll(".pd-link").forEach(function(linkEl){
-      linkEl.addEventListener("click", function(){ openPupilDetail(linkEl.getAttribute("data-acct"), classesRerender); });
-    });
-    app.appendChild(streaksCard);
   }
-  var backPill = el('<div class="pill">&larr; Back to class</div>');
-  backPill.addEventListener("click", function(){ classesUi.mode = "detail"; classesRerender(); });
-  app.appendChild(backPill);
+
+  app.appendChild(el(
+    '<div class="card"><b>&#128101; Pupils</b>'+
+    '<p class="muted" style="margin-top:4px; margin-bottom:0;">Every pupil across your classes, in one place. Filter by class, search by username or name, and tap a column heading to sort. Type straight into the Pupil name column to name someone.</p></div>'
+  ));
+
+  var controlsCard = el(
+    '<div class="card">'+
+      '<label class="muted" style="display:block; margin-bottom:4px;">Class</label>'+
+      '<select id="ptClassFilter" style="margin-bottom:12px;">'+
+        '<option value="">All classes</option>'+
+        allClasses.map(function(c){
+          return '<option value="'+esc(c.id)+'"'+((filterClass && filterClass.id===c.id) ? ' selected' : '')+'>'+esc(c.name)+'</option>';
+        }).join('')+
+      '</select>'+
+      '<label class="muted" style="display:block; margin-bottom:4px;">Search</label>'+
+      '<input type="text" id="ptSearch" placeholder="Search by username or pupil name" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">'+
+    '</div>'
+  );
+  app.appendChild(controlsCard);
+  document.getElementById("ptSearch").value = pupilsTableUi.search;
+  document.getElementById("ptClassFilter").addEventListener("change", function(e){
+    pupilsTableUi.classFilter = e.target.value || null;
+    classesRerender();
+  });
+
+  if(scopeAccounts.length===0){
+    app.appendChild(el('<p class="muted">'+(filterClass ? 'This class has no pupils yet.' : 'No pupils yet &mdash; create a class and add some first.')+'</p>'));
+    ptBackLink();
+    return;
+  }
+
+  var key = "pupils:" + (filterClass ? filterClass.id : "all");
+  var tableCard = el('<div class="pupils-table-wrap"></div>');
+  app.appendChild(tableCard);
+
+  if(analyticsUi.key !== key){
+    if(!analyticsUi.loading) loadClassAnalytics(key, scopeAccounts, classesRerender);
+    tableCard.appendChild(el('<p class="muted" style="margin-top:14px;">Loading&hellip;</p>'));
+    ptBackLink();
+    return;
+  }
+  if(analyticsUi.error){
+    tableCard.appendChild(el('<p style="color:var(--red);">'+esc(analyticsUi.error)+'</p>'));
+    ptBackLink();
+    return;
+  }
+
+  var pupilsData = analyticsUi.pupils || {};
+  var allRows = scopeAccounts.map(function(acct){
+    var p = pupilsData[acct] || {};
+    var streak = p.streak || {current:0, longest:0};
+    var logins = p.logins || [];
+    return {
+      account: acct,
+      name: (acct in PUPIL_NAMES ? PUPIL_NAMES[acct] : p.name) || "",
+      streak: streak,
+      lastLoginMs: logins.length ? new Date(logins[0]).getTime() : -1,
+      lastLoginLabel: logins.length ? fmtRelativeTime(logins[0]) : "Never logged in"
+    };
+  });
+
+  function headerCellHtml(key){
+    var active = pupilsTableUi.sortBy === key;
+    var arrow = active ? (pupilsTableUi.sortDir==="asc" ? " &#9650;" : " &#9660;") : "";
+    return '<th class="pt-sortable" data-key="'+key+'">'+PT_COL_LABELS[key]+arrow+'</th>';
+  }
+  tableCard.appendChild(el(
+    '<table class="pupils-table"><thead><tr>'+
+      headerCellHtml("name")+headerCellHtml("username")+headerCellHtml("lastLogin")+headerCellHtml("streak")+
+    '</tr></thead><tbody id="ptTbody"></tbody></table>'
+  ));
+  var tbody = tableCard.querySelector("#ptTbody");
+
+  tableCard.querySelectorAll(".pt-sortable").forEach(function(th){
+    th.addEventListener("click", function(){
+      var k = th.getAttribute("data-key");
+      if(pupilsTableUi.sortBy === k){
+        pupilsTableUi.sortDir = pupilsTableUi.sortDir === "asc" ? "desc" : "asc";
+      } else {
+        pupilsTableUi.sortBy = k;
+        pupilsTableUi.sortDir = ptDefaultDir(k);
+      }
+      renderRows();
+    });
+  });
+
+  // Rebuilds just the <tbody> (and refreshes the header sort arrows) — never
+  // the search box or class-filter select, so typing in Search never loses
+  // focus/cursor position, matching the live-search convention used
+  // elsewhere in the app (e.g. the main Vocab search box).
+  function renderRows(){
+    tableCard.querySelectorAll(".pt-sortable").forEach(function(th){
+      var k = th.getAttribute("data-key");
+      var active = pupilsTableUi.sortBy === k;
+      var arrow = active ? (pupilsTableUi.sortDir==="asc" ? " &#9650;" : " &#9660;") : "";
+      th.innerHTML = PT_COL_LABELS[k] + arrow;
+    });
+
+    var q = normText((pupilsTableUi.search||"").trim());
+    var rows = allRows.filter(function(r){
+      if(!q) return true;
+      return normText(r.account).indexOf(q)>-1 || normText(r.name).indexOf(q)>-1;
+    });
+
+    var dir = pupilsTableUi.sortDir === "asc" ? 1 : -1;
+    rows.sort(function(a,b){
+      if(pupilsTableUi.sortBy==="name"){
+        // Un-named pupils sort to the end regardless of direction — there's
+        // nothing meaningful to alphabetise about a blank label.
+        if(!a.name && b.name) return 1;
+        if(a.name && !b.name) return -1;
+        if(!a.name && !b.name) return a.account < b.account ? -1 : 1;
+      }
+      var av = ptSortValue(a, pupilsTableUi.sortBy), bv = ptSortValue(b, pupilsTableUi.sortBy);
+      if(av < bv) return -1*dir;
+      if(av > bv) return 1*dir;
+      return a.account < b.account ? -1 : 1; // stable tiebreaker
+    });
+
+    if(rows.length===0){
+      tbody.innerHTML = '<tr><td colspan="4" class="muted" style="text-align:center; padding:16px;">No pupils match &ldquo;'+esc(pupilsTableUi.search)+'&rdquo;.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = rows.map(function(r){
+      return '<tr>'+
+        '<td class="pt-name-cell"><input type="text" class="pt-name-input" maxlength="40" placeholder="Add name" data-acct="'+esc(r.account)+'" value="'+esc(r.name)+'"></td>'+
+        '<td class="pt-link" data-acct="'+esc(r.account)+'">'+esc(r.account)+'</td>'+
+        '<td>'+esc(r.lastLoginLabel)+'</td>'+
+        '<td>&#128293; '+r.streak.current+' <span class="muted">(best '+r.streak.longest+')</span></td>'+
+      '</tr>';
+    }).join('');
+
+    tbody.querySelectorAll(".pt-link").forEach(function(td){
+      td.addEventListener("click", function(){ openPupilDetail(td.getAttribute("data-acct"), classesRerender); });
+    });
+    tbody.querySelectorAll(".pt-name-input").forEach(function(inputEl){
+      var acct = inputEl.getAttribute("data-acct");
+      var savedValue = inputEl.value;
+      function saveInline(){
+        var val = inputEl.value.trim();
+        if(val === savedValue) return;
+        savePupilName(acct, val, function(ok){
+          if(ok){
+            savedValue = val;
+            var found = allRows.filter(function(x){ return x.account===acct; })[0];
+            if(found) found.name = val;
+          } else { inputEl.value = savedValue; }
+        });
+      }
+      inputEl.addEventListener("blur", saveInline);
+      inputEl.addEventListener("keydown", function(e){ if(e.key==="Enter"){ e.preventDefault(); inputEl.blur(); } });
+    });
+  }
+
+  ensurePupilNamesLoaded(scopeAccounts, renderRows);
+  renderRows();
+  document.getElementById("ptSearch").addEventListener("input", function(e){
+    pupilsTableUi.search = e.target.value;
+    renderRows();
+  });
+
+  ptBackLink();
+}
+
+function ptBackLink(){
+  var row = el('<div class="pill-row" style="margin-top:14px;"></div>');
+  var backBtnEl = el('<div class="pill">&larr; '+(classesUi.classId ? 'Back to class' : 'Back to classes')+'</div>');
+  backBtnEl.addEventListener("click", function(){
+    classesUi.mode = classesUi.classId ? "detail" : "list";
+    classesRerender();
+  });
+  row.appendChild(backBtnEl);
+  app.appendChild(row);
 }
 
 function clBackToList(){ classesUi.mode = "list"; classesUi.classId = null; classesRerender(); }
@@ -3806,6 +4011,9 @@ function renderClassCreate(){
       '<input type="text" id="clCreateInput" placeholder="e.g. Year 10 French" autofocus>'+
       '<label class="muted" style="display:block; margin-top:12px; margin-bottom:4px;">Number of pupil accounts to allocate</label>'+
       '<input type="number" id="clCreateCount" min="0" value="0" style="max-width:120px;">'+
+      '<label class="muted" style="display:block; margin-top:12px; margin-bottom:4px;">Or paste a column of pupil names from a spreadsheet</label>'+
+      '<textarea rows="4" id="clCreateNames" placeholder="One name per line, in the order they appear in your spreadsheet column&#10;e.g.&#10;John S&#10;Amelia P"></textarea>'+
+      '<p class="muted" style="margin-top:4px; margin-bottom:0;">Pupils will be named and given accounts automatically, in this order — no need to type codes by hand. Use a first name and surname initial only (e.g. &ldquo;John S&rdquo;), never a full name or other identifying details. Leave this blank to just create unnamed accounts using the number above.</p>'+
       '<p class="muted" id="clCreateMsg" style="margin-top:6px; margin-bottom:0;"></p>'+
       '<button class="btn big" id="clCreateBtn" style="margin-top:8px;">Create class</button>'+
     '</div>'
@@ -3813,7 +4021,29 @@ function renderClassCreate(){
   app.appendChild(card);
   var input = document.getElementById("clCreateInput");
   var countInput = document.getElementById("clCreateCount");
+  var namesInput = document.getElementById("clCreateNames");
   var msg = document.getElementById("clCreateMsg");
+  var createBtn = document.getElementById("clCreateBtn");
+
+  function parsedPastedNames(){
+    return (namesInput.value||"").split("\n").map(function(s){ return s.trim(); }).filter(Boolean);
+  }
+  // While the paste box has names in it, it — not the number field — decides
+  // how many accounts get created, so the number field is greyed out to
+  // avoid the two disagreeing. Clearing the paste box hands control back.
+  namesInput.addEventListener("input", function(){
+    var names = parsedPastedNames();
+    if(names.length > 0){
+      countInput.value = names.length;
+      countInput.disabled = true;
+      msg.style.color = "";
+      msg.textContent = names.length+" pupil name"+(names.length===1?'':'s')+" ready — accounts will be created and named automatically in this order.";
+    } else {
+      countInput.disabled = false;
+      msg.textContent = "";
+    }
+  });
+
   function doCreate(){
     var name = input.value.trim();
     if(!name){
@@ -3821,20 +4051,48 @@ function renderClassCreate(){
       msg.style.color = "var(--red)";
       return;
     }
-    var requested = Math.max(0, parseInt(countInput.value, 10) || 0);
+    var pastedNames = parsedPastedNames();
+    var requested = pastedNames.length > 0 ? pastedNames.length : Math.max(0, parseInt(countInput.value, 10) || 0);
     var picked = availableAccountCodes().slice(0, requested);
     var id = genClassId(name, classesUi.classes);
     var entry = {id:id, name:name, members:picked};
     classesUi.classes.push(entry);
     saveClassesData(true);
-    classesUi.flashMsg = (requested>0 && picked.length<requested)
+    var shortfallMsg = (requested>0 && picked.length<requested)
       ? ("Only "+picked.length+" account"+(picked.length===1?'':'s')+" were unused, so the class was created with "+picked.length+" instead of "+requested+".")
       : null;
+
+    if(pastedNames.length > 0 && picked.length > 0){
+      createBtn.disabled = true;
+      msg.style.color = "";
+      msg.textContent = "Creating class and saving pupil names…";
+      var pairs = picked.map(function(code, i){ return {code:code, name:pastedNames[i]}; });
+      var remaining = pairs.length;
+      var failed = [];
+      pairs.forEach(function(pair){
+        savePupilName(pair.code, pair.name, function(ok){
+          if(!ok) failed.push(pair.code);
+          remaining--;
+          if(remaining===0){
+            var parts = [];
+            if(shortfallMsg) parts.push(shortfallMsg);
+            if(failed.length) parts.push(failed.length+" name"+(failed.length===1?'':'s')+" couldn't be saved — add "+(failed.length===1?'it':'them')+" from the class roster.");
+            classesUi.flashMsg = parts.join(" ") || null;
+            classesUi.mode = "detail";
+            classesUi.classId = id;
+            classesRerender();
+          }
+        });
+      });
+      return;
+    }
+
+    classesUi.flashMsg = shortfallMsg;
     classesUi.mode = "detail";
     classesUi.classId = id;
     classesRerender();
   }
-  document.getElementById("clCreateBtn").addEventListener("click", doCreate);
+  createBtn.addEventListener("click", doCreate);
   input.addEventListener("keydown", function(e){ if(e.key==="Enter") doCreate(); });
   input.focus();
   clBackLink();
@@ -3883,8 +4141,7 @@ function renderClassDetail(){
   );
   app.appendChild(manageRow);
   document.getElementById("clStreaksBtn").addEventListener("click", function(){
-    classesUi.mode = "streaks";
-    classesRerender();
+    enterPupilsScreen(classesUi.classId);
   });
 
   var membersCard = el(
@@ -30012,15 +30269,18 @@ function renderSync(){
     var teacherBtnRow = el(
       '<div class="btn-row" style="margin-top:8px; flex-wrap:wrap;">'+
         '<button class="btn">Manage classes</button>'+
+        '<button class="btn">&#128101; Pupils</button>'+
         '<button class="btn">Manage vocab lists</button>'+
         '<button class="btn">Manage Independent Study</button>'+
       '</div>'
     );
     teacherCard.appendChild(teacherBtnRow);
     var manageClassesBtn = teacherBtnRow.children[0];
-    var manageListsBtn = teacherBtnRow.children[1];
-    var manageIsBtn = teacherBtnRow.children[2];
+    var pupilsBtn = teacherBtnRow.children[1];
+    var manageListsBtn = teacherBtnRow.children[2];
+    var manageIsBtn = teacherBtnRow.children[3];
     manageClassesBtn.addEventListener("click", function(){ enterClassesScreen(); });
+    pupilsBtn.addEventListener("click", function(){ enterPupilsScreen(null); });
     manageListsBtn.addEventListener("click", function(){ enterTeacherListsScreen(); });
     manageIsBtn.addEventListener("click", function(){ enterIsTasksScreen(); });
     app.appendChild(el('<div style="height:12px;"></div>'));
