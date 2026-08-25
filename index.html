@@ -262,6 +262,9 @@
     line-height:1; cursor:pointer;
   }
   .info-modal-close:active{background:var(--purple); color:#fff;}
+  .leave-modal-actions{display:flex; gap:10px; margin-top:4px;}
+  .leave-modal-actions button{flex:1; padding:12px; border-radius:12px; border:2px solid var(--purple); font-weight:700; font-size:var(--fs-text); background:#fff; color:var(--purple);}
+  .leave-modal-actions button.danger{background:var(--red); border-color:var(--red); color:#fff;}
   .progress-bar{height:8px; background:var(--tint); border-radius:6px; overflow:hidden; display:flex; margin-top:6px;}
   .progress-bar span{height:100%;}
   a{color:var(--purple);}
@@ -282,6 +285,16 @@
   <div class="info-modal-box">
     <button id="infoModalClose" class="info-modal-close" aria-label="Close">&times;</button>
     <div id="infoModalBody"></div>
+  </div>
+</div>
+<div id="leaveModalOverlay" class="info-modal-overlay">
+  <div class="info-modal-box">
+    <h3>Leave this page?</h3>
+    <p>Are you sure you want to leave your current page? Your progress may not be saved and you may need to start again.</p>
+    <div class="leave-modal-actions">
+      <button id="leaveStayBtn">Stay</button>
+      <button id="leaveGoBtn" class="danger">Leave</button>
+    </div>
   </div>
 </div>
 <nav class="tabbar">
@@ -2746,14 +2759,67 @@ function go(name, param){
   render();
   window.scrollTo(0,0);
 }
-document.querySelectorAll("nav.tabbar button").forEach(function(b){
-  b.addEventListener("click", function(){
-    if(b.dataset.route==="flashcards"){ fcResetWizard(); }
-    if(b.dataset.route==="independentStudy"){ isDetailUi = {taskId:null, screen:"detail"}; }
-    go(b.dataset.route, null);
-  });
+// ---------- "leave this page?" navigation guard ----------
+// Digital Flashcards sessions and Quick 10 results (both driven by module-
+// level flags rather than `route`, so `render()` can redraw them in place no
+// matter which tab is highlighted — see the comment above render()) used to
+// make those two screens impossible to navigate away from: switching tabs
+// updated `route` but render() kept redrawing the in-progress screen anyway.
+// Mid-wizard selections (before either of those flags is set) were never
+// actually blocked, but silently discarded on tab switch with no warning.
+// This guard covers both: any tab/back-arrow click while something is
+// in progress prompts before discarding it, and "Leave" clears the relevant
+// state so the click's original destination renders normally afterwards.
+function hasInProgressWork(){
+  return !!(fcDigital.active || q10ShowResults || fcStepKey!=="mode" || q10StepKey!=="type");
+}
+function clearInProgressWork(){
+  cancelScheduledDigitalAdvance();
+  fcResetWizard(); // also clears fcDigital.active
+  q10Wizard = {type:null, colors:null, theme:null, difficulty:null, direction:null, customListId:null, personalSetId:null, teacherListId:null};
+  q10StepKey = "type";
+  q10ShowResults = false;
+  isDetailUi.screen = "detail"; // no-op unless the abandoned session was launched from Independent Study
+}
+function performNavigateTo(routeName){
+  // Dropped unconditionally, whatever the destination — viewing a pupil's
+  // progress isn't "in-progress work" worth a leave-confirmation over, it
+  // just shouldn't keep overriding render() once you've tapped away from
+  // the screen that opened it (pupilDetailUi is declared further down,
+  // alongside the rest of the shared analytics code — a plain global, so
+  // referencing it here before that point in the file is fine).
+  pupilDetailUi.account = null;
+  if(routeName==="flashcards"){ fcResetWizard(); }
+  if(routeName==="independentStudy"){ isDetailUi = {taskId:null, screen:"detail"}; }
+  go(routeName, null);
+}
+var leaveModalOverlay = document.getElementById("leaveModalOverlay");
+var pendingLeaveRoute = null;
+function showLeaveConfirm(routeName){
+  pendingLeaveRoute = routeName;
+  leaveModalOverlay.style.display = "flex";
+}
+function hideLeaveConfirm(){
+  pendingLeaveRoute = null;
+  leaveModalOverlay.style.display = "none";
+}
+function requestNavigateTo(routeName){
+  if(hasInProgressWork()){ showLeaveConfirm(routeName); return; }
+  performNavigateTo(routeName);
+}
+document.getElementById("leaveStayBtn").addEventListener("click", hideLeaveConfirm);
+document.getElementById("leaveGoBtn").addEventListener("click", function(){
+  var target = pendingLeaveRoute;
+  hideLeaveConfirm();
+  clearInProgressWork();
+  performNavigateTo(target);
 });
-document.getElementById("backBtn").addEventListener("click", function(){ go("home", null); });
+leaveModalOverlay.addEventListener("click", function(e){ if(e.target === leaveModalOverlay) hideLeaveConfirm(); });
+
+document.querySelectorAll("nav.tabbar button").forEach(function(b){
+  b.addEventListener("click", function(){ requestNavigateTo(b.dataset.route); });
+});
+document.getElementById("backBtn").addEventListener("click", function(){ requestNavigateTo("home"); });
 
 // ---------- render ----------
 var app = document.getElementById("app");
@@ -2827,14 +2893,21 @@ function render(){
   hideInfoModal();
   clearInfoButton();
   app.innerHTML = "";
-  // These two intercepts run before the normal route dispatch below, and on
-  // whichever tab/screen kicked them off, so a Digital Flashcards session or a
+  // These three intercepts run before the normal route dispatch below, and on
+  // whichever tab/screen kicked them off, so a Digital Flashcards session, a
   // Quick 10 results screen launched from Independent Study (which never
   // navigates away from the "independentStudyTask" route — see renderIsLearnOptions/
-  // renderIsTaskMain) renders in place, with that tab still highlighted, and
-  // exiting lands back on the screen that started it. Existing entry points
-  // (the Flashcards/Quick 10 tabs) behave exactly as before, since fcDigital.active/
-  // q10ShowResults could previously only become true while already on those routes.
+  // renderIsTaskMain) or a per-pupil drill-down opened from Manage Classes,
+  // Manage vocab lists, or Manage Independent Study analytics renders in
+  // place, with that tab still highlighted, and exiting lands back on the
+  // screen that started it. Existing entry points (the Flashcards/Quick 10
+  // tabs) behave exactly as before, since fcDigital.active/q10ShowResults
+  // could previously only become true while already on those routes.
+  if(pupilDetailUi.account){
+    titleEl.textContent = "Pupil progress";
+    renderPupilDetail();
+    return;
+  }
   if(fcDigital.active){
     titleEl.textContent = fcDigital.headerTitle || "Flashcards";
     setInfoButton(FLASHCARDS_INFO_HTML);
@@ -3588,7 +3661,7 @@ function csvField(s){
 function buildClassCsv(c){
   var lines = ["Pupil number,Pupil login,Pupil name"];
   c.members.slice().sort().forEach(function(code, i){
-    lines.push([i+1, csvField(code), ""].join(","));
+    lines.push([i+1, csvField(code), csvField(PUPIL_NAMES[code] || "")].join(","));
   });
   return lines.join("\r\n");
 }
@@ -3654,13 +3727,17 @@ function renderClassStreaks(){
     }).sort(function(a,b){ return b.streak.current - a.streak.current; });
     var html = '<div class="card">';
     rows.forEach(function(r){
-      html += '<div class="wrow" style="margin-bottom:10px;">'+
-        '<div class="wtext">'+esc(r.account)+'<div class="muted" style="font-size:12px;">Last seen: '+esc(r.lastSeen)+'</div></div>'+
+      html += '<div class="wrow" style="margin-bottom:6px;">'+
+        '<div class="wtext pd-link" data-acct="'+esc(r.account)+'" style="cursor:pointer;">'+acctLabel(r.account)+'<div class="muted" style="font-size:12px;">Last seen: '+esc(r.lastSeen)+'</div></div>'+
         '<div style="text-align:right; white-space:nowrap;"><div style="font-weight:800; color:#8A6A00;">&#128293; '+r.streak.current+'</div><div class="muted" style="font-size:12px;">best '+r.streak.longest+'</div></div>'+
         '</div>';
     });
     html += '</div>';
-    app.appendChild(el(html));
+    var streaksCard = el(html);
+    streaksCard.querySelectorAll(".pd-link").forEach(function(linkEl){
+      linkEl.addEventListener("click", function(){ openPupilDetail(linkEl.getAttribute("data-acct"), classesRerender); });
+    });
+    app.appendChild(streaksCard);
   }
   var backPill = el('<div class="pill">&larr; Back to class</div>');
   backPill.addEventListener("click", function(){ classesUi.mode = "detail"; classesRerender(); });
@@ -3677,7 +3754,7 @@ function clBackLink(){
 }
 
 function renderClassList(){
-  app.appendChild(el('<div class="banner">Classes are shared &mdash; any teacher account can create, rename, or edit them here. Only account codes are stored, never pupil names.</div>'));
+  app.appendChild(el('<div class="banner">Classes are shared &mdash; any teacher account can create, rename, or edit them here. Adding a pupil\'s name is optional: use a first name and surname initial only (e.g. &ldquo;John S&rdquo;), never a full name or other identifying details.</div>'));
   var newBtn = el('<button class="btn big" id="clNewBtn">+ New class</button>');
   app.appendChild(newBtn);
   newBtn.addEventListener("click", function(){ classesUi.mode = "create"; classesRerender(); });
@@ -3800,7 +3877,7 @@ function renderClassDetail(){
 
   var membersCard = el(
     '<div class="card"><b>Pupils in this class</b>'+
-    '<p class="muted" style="margin-top:4px;">Removing a pupil takes them off this class only — their account isn\'t deleted, and the code becomes unused again so it can be allocated to a future class.</p>'+
+    '<p class="muted" style="margin-top:4px; margin-bottom:0;">Removing a pupil takes them off this class only — their account isn\'t deleted, and the code becomes unused again so it can be allocated to a future class. Tap a pupil to see their progress, or add a name to help tell them apart.</p>'+
     '<div id="clMemberItems" style="margin-top:8px;"></div></div>'
   );
   app.appendChild(membersCard);
@@ -3822,10 +3899,13 @@ function renderClassDetail(){
     cc.members.slice().sort().forEach(function(code){
       var row = el(
         '<div class="wrow" style="margin-bottom:6px;">'+
-          '<div class="wtext">'+esc(code)+'</div>'+
+          '<div class="wtext" style="cursor:pointer;">'+acctLabel(code)+'</div>'+
           '<button class="del" type="button" title="Remove">&times;</button>'+
         '</div>'
       );
+      row.querySelector(".wtext").addEventListener("click", function(){
+        openPupilDetail(code, classesRerender);
+      });
       row.querySelector(".del").addEventListener("click", function(){
         var cc2 = getClass(classesUi.classId);
         if(!cc2) return;
@@ -3837,12 +3917,12 @@ function renderClassDetail(){
       memberWrap.appendChild(row);
     });
   }
-  refreshMembers();
+  ensurePupilNamesLoaded(c.members, refreshMembers);
 
   var autoAddCard = el(
     '<div class="card">'+
       '<b>Add unused accounts</b>'+
-      '<p class="muted" style="margin-top:4px;" id="clPoolMsg"></p>'+
+      '<p class="muted" style="margin-top:4px; margin-bottom:0;" id="clPoolMsg"></p>'+
       '<div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:6px;">'+
         '<input type="number" id="clAutoCount" min="1" value="1" style="max-width:100px;">'+
         '<button class="btn" id="clAutoAddBtn">+ Add unused accounts</button>'+
@@ -3873,7 +3953,7 @@ function renderClassDetail(){
   var addCard = el(
     '<div class="card">'+
       '<b>Add specific pupils by code</b>'+
-      '<p class="muted" style="margin-top:4px;">Use this to move a specific pupil in from another class, or to add one whose code you already know. Paste one or more account codes — separated by commas, spaces or new lines (e.g. copied straight from a spreadsheet column). Pasting a code that\'s already in another class moves it here.</p>'+
+      '<p class="muted" style="margin-top:4px; margin-bottom:0;">Use this to move a specific pupil in from another class, or to add one whose code you already know. Paste one or more account codes — separated by commas, spaces or new lines (e.g. copied straight from a spreadsheet column). Pasting a code that\'s already in another class moves it here.</p>'+
       '<textarea rows="3" id="clAddInput" placeholder="otter-14, panda-26 ..."></textarea>'+
       '<button class="btn" id="clAddBtn" style="margin-top:8px;">+ Add pupils</button>'+
       '<p class="muted" id="clAddMsg" style="margin-top:6px; margin-bottom:0;"></p>'+
@@ -4999,6 +5079,282 @@ function renderIsManageDetail(){
   istBackLink();
 }
 
+// ---- Shared teacher-facing pupil names + per-pupil drill-down ----
+// account -> "John S"|null, populated lazily from whichever endpoint
+// happens to mention a pupil first (a dedicated /api/pupil-names bulk read
+// on the plain roster screen, or piggy-backed on /api/pupil-analytics
+// wherever that's already being fetched) — one shared cache either way, so
+// a name only ever has to load once per pupil per session regardless of
+// which screen sees them first.
+var PUPIL_NAMES = {};
+var pupilNamesLoading = false;
+
+// Renders however much of {name, account} we currently know, consistently,
+// everywhere a teacher sees a pupil identified — the class roster, the
+// streaks/activity table, and every per-pupil row in the shared RAG
+// analytics renderer below.
+function acctLabel(acct){
+  var n = PUPIL_NAMES[acct];
+  return n ? (esc(n)+' <span class="muted">('+esc(acct)+')</span>') : esc(acct);
+}
+
+// Fetches only the accounts not already cached (a no-op, synchronous-onReady
+// call if everything's already known) — safe to call on every render of a
+// screen that lists pupils by code, without re-fetching names it already has.
+function ensurePupilNamesLoaded(accounts, onReady){
+  var missing = accounts.filter(function(a){ return !(a in PUPIL_NAMES); });
+  if(missing.length===0){ if(onReady) onReady(); return; }
+  if(pupilNamesLoading) return;
+  pupilNamesLoading = true;
+  fetch("/api/pupil-names?account="+encodeURIComponent(ACCOUNT)+"&targets="+encodeURIComponent(missing.join(",")))
+    .then(function(r){ return r.ok ? r.json() : Promise.reject(new Error("bad response")); })
+    .then(function(data){
+      var names = (data && data.names) || {};
+      missing.forEach(function(a){ PUPIL_NAMES[a] = (a in names) ? names[a] : null; });
+      pupilNamesLoading = false;
+      if(onReady) onReady();
+    })
+    .catch(function(e){
+      pupilNamesLoading = false;
+      // avoid retrying forever against a persistent failure — leave these
+      // accounts "known unknown" (null) for this session, same as
+      // "no name set", rather than re-requesting on every render
+      missing.forEach(function(a){ if(!(a in PUPIL_NAMES)) PUPIL_NAMES[a] = null; });
+    });
+}
+
+function savePupilName(account, name, onDone){
+  fetch("/api/pupil-names?account="+encodeURIComponent(ACCOUNT), {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({target: account, name: name})
+  }).then(function(r){ return r.ok ? r.json() : Promise.reject(new Error("bad response")); })
+    .then(function(data){
+      PUPIL_NAMES[account] = (data && data.name) || null;
+      onDone(true);
+    })
+    .catch(function(e){ onDone(false); });
+}
+
+// A teacher-only "explore this pupil" screen, reachable from the class
+// roster, the streaks/activity table, and any per-pupil row in the shared
+// RAG analytics below — all three just call openPupilDetail(account, backFn)
+// and this renders in place of whatever route/tab is active, the same
+// pattern fcDigital.active/q10ShowResults already use so the tab bar stays
+// on whichever screen opened it. `back` is that screen's own rerender
+// function (classesRerender/teacherListsRerender/isTasksRerender) — calling
+// it again just redraws the screen exactly as it was, since none of them
+// change classesUi.mode/etc. Cleared unconditionally in performNavigateTo()
+// so any tab-bar click or the header back-arrow silently drops it — viewing
+// a report isn't "in-progress work" worth a leave-confirmation for.
+var pupilDetailUi = {account:null, back:null, loading:false, error:null, data:null, nameMsg:null, nameMsgOk:null};
+function openPupilDetail(account, backFn){
+  pupilDetailUi = {account:account, back:backFn, loading:false, error:null, data:null, nameMsg:null, nameMsgOk:null};
+  render();
+  window.scrollTo(0,0);
+}
+function closePupilDetail(){
+  var back = pupilDetailUi.back;
+  pupilDetailUi = {account:null, back:null, loading:false, error:null, data:null, nameMsg:null, nameMsgOk:null};
+  if(back) back(); else render();
+}
+function pdBackPill(){
+  var row = el('<div class="pill-row" style="margin-top:14px;"></div>');
+  var backBtnEl = el('<div class="pill">&larr; Back</div>');
+  backBtnEl.addEventListener("click", closePupilDetail);
+  row.appendChild(backBtnEl);
+  app.appendChild(row);
+}
+
+function renderPupilDetail(){
+  var account = pupilDetailUi.account;
+
+  // The teacher-sets breakdown needs every teacher list's word set —
+  // ensure it's loaded regardless of which screen this was opened from
+  // (Manage vocab lists already guarantees this; Manage Classes doesn't).
+  if(teacherListsUi.lists === null){
+    if(!teacherListsUi.loading) loadTeacherListsData();
+    app.appendChild(el('<p class="muted" style="margin-top:14px;">Loading vocab lists&hellip;</p>'));
+    pdBackPill();
+    return;
+  }
+
+  if(pupilDetailUi.data === null){
+    if(!pupilDetailUi.loading){
+      pupilDetailUi.loading = true;
+      fetch("/api/pupil-analytics?account="+encodeURIComponent(ACCOUNT)+"&targets="+encodeURIComponent(account)+"&today="+encodeURIComponent(todayLocalISO()))
+        .then(function(r){ return r.ok ? r.json() : Promise.reject(new Error("bad response")); })
+        .then(function(data){
+          var p = (data && data.pupils && data.pupils[account]) || null;
+          if(!p){ return Promise.reject(new Error("no data for pupil")); }
+          PUPIL_NAMES[account] = p.name || null;
+          pupilDetailUi.loading = false;
+          pupilDetailUi.data = p;
+          render();
+          window.scrollTo(0,0);
+        })
+        .catch(function(e){
+          pupilDetailUi.loading = false;
+          pupilDetailUi.error = "Couldn't load this pupil's progress — check you're online and try again.";
+          render();
+        });
+    }
+    app.appendChild(el('<div class="card"><p class="muted" style="margin:0;">Loading pupil progress&hellip;</p></div>'));
+    pdBackPill();
+    return;
+  }
+
+  if(pupilDetailUi.error){
+    app.appendChild(el('<div class="card"><p style="margin:0; color:var(--red);">'+esc(pupilDetailUi.error)+'</p></div>'));
+    pdBackPill();
+    return;
+  }
+
+  var data = pupilDetailUi.data;
+  var currentName = PUPIL_NAMES[account] || data.name || null;
+
+  app.appendChild(el(
+    '<div class="card"><b>'+(currentName ? esc(currentName) : esc(account))+'</b>'+
+    '<p class="muted" style="margin-top:4px; margin-bottom:0;">Account code: '+esc(account)+
+    (currentName ? '' : ' &middot; no name set yet')+'</p></div>'
+  ));
+
+  var nameCard = el(
+    '<div class="card"><b>Pupil name (optional)</b>'+
+    '<p class="muted" style="margin-top:4px; margin-bottom:0;">First name and surname initial only, e.g. &ldquo;John S&rdquo; &mdash; never a full surname or other identifying details.</p>'+
+    '<input type="text" id="pdNameInput" maxlength="40" placeholder="e.g. John S" value="'+esc(currentName||"")+'" style="margin-top:8px;">'+
+    '<div class="btn-row">'+
+      '<button class="btn" id="pdNameSave">Save name</button>'+
+      (currentName ? '<button class="btn secondary" id="pdNameClear">Remove name</button>' : '')+
+    '</div>'+
+    '<p class="muted" id="pdNameMsg" style="margin-top:6px; margin-bottom:0; color:'+
+      (pupilDetailUi.nameMsgOk===true ? 'var(--green)' : pupilDetailUi.nameMsgOk===false ? 'var(--red)' : 'inherit')+
+      ';">'+esc(pupilDetailUi.nameMsg||"")+'</p></div>'
+  );
+  app.appendChild(nameCard);
+  var pdMsg = nameCard.querySelector("#pdNameMsg");
+  // Saving/removing both re-render on completion (so the header title picks
+  // up the new name too) — the confirmation text is stashed on pupilDetailUi
+  // rather than just set on this DOM node directly, since that render()
+  // rebuilds this whole card from scratch a moment later and would
+  // otherwise wipe the message before it's ever seen.
+  nameCard.querySelector("#pdNameSave").addEventListener("click", function(){
+    var val = nameCard.querySelector("#pdNameInput").value.trim();
+    pdMsg.textContent = "Saving…";
+    pdMsg.style.color = "";
+    savePupilName(account, val, function(ok){
+      pupilDetailUi.nameMsg = ok ? "Saved." : "Couldn't save — check you're online and try again.";
+      pupilDetailUi.nameMsgOk = ok;
+      render();
+    });
+  });
+  var pdClearBtn = nameCard.querySelector("#pdNameClear");
+  if(pdClearBtn){
+    pdClearBtn.addEventListener("click", function(){
+      pdMsg.textContent = "Removing…";
+      pdMsg.style.color = "";
+      savePupilName(account, "", function(ok){
+        pupilDetailUi.nameMsg = ok ? "Name removed." : "Couldn't remove — check you're online and try again.";
+        pupilDetailUi.nameMsgOk = ok;
+        render();
+      });
+    });
+  }
+
+  // ---- Fixed AQA units — weakest first, respecting this pupil's own
+  // Foundation/Foundation+Higher setting so a Foundation-only pupil isn't
+  // shown as "all red" on Higher units they've never even been shown ----
+  var tiers = data.showHigher ? ["F","H"] : ["F"];
+  var unitRows = DATA.units.map(function(u){
+    var total=0, green=0;
+    tiers.forEach(function(tier){
+      (u.tiers[tier]||[]).forEach(function(w){
+        total++;
+        if((data.ratings[w.id]||"R")==="G") green++;
+      });
+    });
+    return {title:u.title, total:total, green:green};
+  }).filter(function(r){ return r.total>0; });
+  unitRows.sort(function(a,b){
+    return (a.total?a.green/a.total:1) - (b.total?b.green/b.total:1);
+  });
+  var unitsHtml = '<div class="card"><b>Fixed AQA units</b>'+
+    '<p class="muted" style="margin-top:4px; margin-bottom:0;">'+(data.showHigher?'Foundation + Higher':'Foundation only')+' &mdash; weakest units first.</p>'+
+    '<div style="margin-top:8px;">';
+  unitRows.forEach(function(r){
+    var pct = r.total>0 ? Math.round(100*r.green/r.total) : 0;
+    unitsHtml += '<div style="margin-bottom:10px;">'+
+      '<div class="wrow" style="margin-bottom:4px;"><div class="wtext">'+esc(r.title)+'</div><div class="muted">'+r.green+' / '+r.total+' green</div></div>'+
+      '<div class="progress-bar"><span style="width:'+pct+'%; background:var(--green)"></span></div>'+
+      '</div>';
+  });
+  unitsHtml += '</div></div>';
+  app.appendChild(el(unitsHtml));
+
+  // ---- Teacher vocab lists actually targeted to this pupil ----
+  var myLists = (teacherListsUi.lists||[]).filter(function(l){
+    return teacherListRecipients(l).indexOf(account) > -1;
+  });
+  if(myLists.length===0){
+    app.appendChild(el(
+      '<div class="card"><b>Teacher vocab lists</b>'+
+      '<p class="muted" style="margin-top:4px; margin-bottom:0;">No vocab lists are currently targeted to this pupil.</p></div>'
+    ));
+  } else {
+    var listRows = myLists.map(function(l){
+      var total=l.words.length, green=0;
+      l.words.forEach(function(w){ if((data.ratings[w.id]||"R")==="G") green++; });
+      return {name:l.name, total:total, green:green};
+    }).sort(function(a,b){ return (a.total?a.green/a.total:1) - (b.total?b.green/b.total:1); });
+    var listsHtml = '<div class="card"><b>Teacher vocab lists</b>'+
+      '<p class="muted" style="margin-top:4px; margin-bottom:0;">Weakest lists first.</p>'+
+      '<div style="margin-top:8px;">';
+    listRows.forEach(function(r){
+      var pct = r.total>0 ? Math.round(100*r.green/r.total) : 0;
+      listsHtml += '<div style="margin-bottom:10px;">'+
+        '<div class="wrow" style="margin-bottom:4px;"><div class="wtext">'+esc(r.name)+'</div><div class="muted">'+r.green+' / '+r.total+' green</div></div>'+
+        '<div class="progress-bar"><span style="width:'+pct+'%; background:var(--green)"></span></div>'+
+        '</div>';
+    });
+    listsHtml += '</div></div>';
+    app.appendChild(el(listsHtml));
+  }
+
+  // ---- The pupil's own saved Custom AQA Vocabulary Sets (subsets of AQA
+  // words they've built themselves — not to be confused with the fully
+  // freeform "My personal vocabulary lists", which stay private to the
+  // pupil and aren't surfaced here, matching the existing, deliberate
+  // choice not to give those an Analytics view either) ----
+  var customLists = data.customLists || [];
+  if(customLists.length===0){
+    app.appendChild(el(
+      '<div class="card"><b>Custom AQA Vocabulary Sets</b>'+
+      '<p class="muted" style="margin-top:4px; margin-bottom:0;">This pupil hasn\'t saved any custom AQA sets yet.</p></div>'
+    ));
+  } else {
+    var clRows = customLists.slice().sort(function(a,b){ return (b.id||0)-(a.id||0); }).map(function(cl){
+      var wordIds = cl.wordIds||[];
+      var green=0;
+      wordIds.forEach(function(id){ if((data.ratings[id]||"R")==="G") green++; });
+      return {name:cl.name, total:wordIds.length, green:green};
+    });
+    var customHtml = '<div class="card"><b>Custom AQA Vocabulary Sets</b>'+
+      '<p class="muted" style="margin-top:4px; margin-bottom:0;">Sets this pupil has built themselves from AQA vocab.</p>'+
+      '<div style="margin-top:8px;">';
+    clRows.forEach(function(r){
+      var pct = r.total>0 ? Math.round(100*r.green/r.total) : 0;
+      customHtml += '<div style="margin-bottom:10px;">'+
+        '<div class="wrow" style="margin-bottom:4px;"><div class="wtext">'+esc(r.name)+'</div><div class="muted">'+r.green+' / '+r.total+' green</div></div>'+
+        '<div class="progress-bar"><span style="width:'+pct+'%; background:var(--green)"></span></div>'+
+        '</div>';
+    });
+    customHtml += '</div></div>';
+    app.appendChild(el(customHtml));
+  }
+
+  pdBackPill();
+}
+
 // ---- Shared teacher-facing RAG analytics (class + per-pupil + per-word) ----
 // Backs both "Manage Independent Study" -> task -> Analytics and "Manage
 // vocab lists" -> list -> Analytics. Same shape either way: a word list +
@@ -5020,6 +5376,13 @@ function loadClassAnalytics(key, targets, onReady){
     .then(function(r){ return r.ok ? r.json() : Promise.reject(new Error("bad response")); })
     .then(function(data){
       analyticsUi.pupils = (data && data.pupils) || {};
+      // keep the shared name cache warm — this bulk call already includes
+      // each pupil's name, so screens that only ever call pupil-analytics
+      // (never the plain roster) still get acctLabel() working for free.
+      Object.keys(analyticsUi.pupils).forEach(function(acct){
+        var p = analyticsUi.pupils[acct];
+        if(p && ("name" in p)) PUPIL_NAMES[acct] = p.name;
+      });
       analyticsUi.loading = false;
       if(onReady) onReady();
     })
@@ -5066,27 +5429,33 @@ function renderClassRagAnalytics(key, words, targets, rerender){
   var classPct = totalSlots>0 ? Math.round(100*greenSlots/totalSlots) : 0;
 
   var html = '<div class="card"><b>Class progress</b>'+
-    '<p class="muted" style="margin-top:4px;">'+greenSlots+' of '+totalSlots+' word-marks across '+targets.length+' pupil'+(targets.length===1?'':'s')+' are green.</p>'+
+    '<p class="muted" style="margin-top:4px; margin-bottom:0;">'+greenSlots+' of '+totalSlots+' word-marks across '+targets.length+' pupil'+(targets.length===1?'':'s')+' are green.</p>'+
     '<div class="progress-bar"><span style="width:'+classPct+'%; background:var(--green)"></span></div>'+
     '</div>';
   app.appendChild(el(html));
 
-  var pupilHtml = '<div class="card"><b>Per pupil</b><div style="margin-top:8px;">';
+  var pupilHtml = '<div class="card"><b>Per pupil</b>'+
+    '<p class="muted" style="margin-top:4px; margin-bottom:0;">Tap a pupil to explore their progress on fixed units, teacher sets, and their own custom sets.</p>'+
+    '<div style="margin-top:8px;">';
   perPupil.slice().sort(function(a,b){ return b.counts.G - a.counts.G; }).forEach(function(p){
     var total = words.length;
     var pct = total>0 ? Math.round(100*p.counts.G/total) : 0;
     pupilHtml += '<div style="margin-bottom:10px;">'+
-      '<div class="wrow" style="margin-bottom:2px;"><div class="wtext">'+esc(p.account)+'</div><div class="muted">'+p.counts.G+' / '+total+' green</div></div>'+
+      '<div class="wrow" style="margin-bottom:4px;"><div class="wtext pd-link" data-acct="'+esc(p.account)+'" style="cursor:pointer;">'+acctLabel(p.account)+'</div><div class="muted">'+p.counts.G+' / '+total+' green</div></div>'+
       '<div class="progress-bar"><span style="width:'+pct+'%; background:var(--green)"></span></div>'+
       '</div>';
   });
   pupilHtml += '</div></div>';
-  app.appendChild(el(pupilHtml));
+  var pupilCard = el(pupilHtml);
+  pupilCard.querySelectorAll(".pd-link").forEach(function(linkEl){
+    linkEl.addEventListener("click", function(){ openPupilDetail(linkEl.getAttribute("data-acct"), rerender); });
+  });
+  app.appendChild(pupilCard);
 
   // Sorted reds-first so the words most worth revisiting in lessons surface
   // at the top — the "13/15 marked this red" use case.
   var wordHtml = '<div class="card"><b>Per word</b>'+
-    '<p class="muted" style="margin-top:4px;">How the class currently rates each word &mdash; a quick way to spot ones worth going over again in lessons.</p>'+
+    '<p class="muted" style="margin-top:4px; margin-bottom:0;">How the class currently rates each word &mdash; a quick way to spot ones worth going over again in lessons.</p>'+
     '<div style="margin-top:8px;">';
   words.slice().sort(function(a,b){
     var ca = perWordCounts[a.id], cb = perWordCounts[b.id];

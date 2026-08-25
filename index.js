@@ -13,6 +13,7 @@ import { handleIndependentStudy } from "./independent-study.js";
 import { handleLogins } from "./logins.js";
 import { handleStreaks } from "./streaks.js";
 import { handlePupilAnalytics } from "./pupil-analytics.js";
+import { handlePupilNames } from "./pupil-names.js";
 import { json } from "./kv.js";
 
 export default {
@@ -39,6 +40,9 @@ export default {
     }
     if (url.pathname === "/api/pupil-analytics") {
       return handlePupilAnalytics(request, env, url);
+    }
+    if (url.pathname === "/api/pupil-names") {
+      return handlePupilNames(request, env, url);
     }
 
     // Any other path that reached the Worker (run_worker_first is scoped to
