@@ -232,6 +232,13 @@
      San Francisco) instead of Inter, which reads as "shorter and bolder"
      than the rest of the site (25 Aug 2026). */
   button{font-family:inherit;}
+  /* Same gap, same fix, for every OTHER form control — not just the plain
+     text inputs already covered above. Number/date/time/file inputs and
+     <select> don't inherit font-family either, so without this rule any
+     new date/number field (e.g. the Independent Study deadline picker)
+     silently renders in the OS UI font again — caught by design-lint.mjs's
+     rendered-font-family check (25 Aug 2026). */
+  input, select{font-family:inherit;}
   .muted{color:var(--muted); font-size:var(--fs-subtext); line-height:1.5;}
   .qr-wrap{display:flex; justify-content:center; margin:14px 0;}
   .qr-wrap svg{background:#fff; padding:10px; border-radius:12px; border:1px solid var(--border);}
@@ -246,7 +253,7 @@
   .banner{background:#FFF3CD; border:1px solid #FFE69C; color:#664D03; font-size:var(--fs-subtext); padding:8px 10px; border-radius:10px; margin-bottom:12px;}
   .banner.is-due-banner{cursor:pointer; background:#FDECEA; border-color:#F5C2C0; color:#7A1F17; font-weight:700;}
   .streak-card{background:#FFF6D8; border:1px solid #F0DE8A;}
-  .streak-title{color:#8A6A00; font-weight:800; font-size:var(--fs-subtitle, 16px);}
+  .streak-title{color:#8A6A00; font-weight:800; font-size:var(--fs-title);}
   .streak-count{color:#8A6A00; font-weight:700; margin-top:4px;}
   .streak-freeze-note{color:#8A6A00; font-size:var(--fs-subtext); margin:8px 0 0; opacity:.9;}
   .streak-req-note{color:#8A6A00; font-size:var(--fs-subtext); margin:8px 0 0; opacity:.75;}
@@ -3733,8 +3740,8 @@ function renderClassStreaks(){
     var html = '<div class="card">';
     rows.forEach(function(r){
       html += '<div class="wrow" style="margin-bottom:6px;">'+
-        '<div class="wtext pd-link" data-acct="'+esc(r.account)+'" style="cursor:pointer;">'+acctLabel(r.account)+'<div class="muted" style="font-size:12px;">Last seen: '+esc(r.lastSeen)+'</div></div>'+
-        '<div style="text-align:right; white-space:nowrap;"><div style="font-weight:800; color:#8A6A00;">&#128293; '+r.streak.current+'</div><div class="muted" style="font-size:12px;">best '+r.streak.longest+'</div></div>'+
+        '<div class="wtext pd-link" data-acct="'+esc(r.account)+'" style="cursor:pointer;">'+acctLabel(r.account)+'<div class="muted">Last seen: '+esc(r.lastSeen)+'</div></div>'+
+        '<div style="text-align:right; white-space:nowrap;"><div style="font-weight:800; color:#8A6A00;">&#128293; '+r.streak.current+'</div><div class="muted">best '+r.streak.longest+'</div></div>'+
         '</div>';
     });
     html += '</div>';
@@ -6751,8 +6758,8 @@ function scheduleDigitalAdvance(delayMs){
 
 function renderDigitalSession(){
   app.appendChild(el(
-    '<div class="card" style="font-size:13px; color:var(--muted); line-height:1.5;">'+
-      '<b style="color:var(--purple); font-size:13px;">Digital Flashcards</b><br>'+
+    '<div class="card" style="font-size:var(--fs-subtext); color:var(--muted); line-height:1.5;">'+
+      '<b style="color:var(--purple); font-size:var(--fs-subtext);">Digital Flashcards</b><br>'+
       fcSummaryLines().map(esc).join(' &middot; ')+
     '</div>'
   ));
@@ -6893,10 +6900,10 @@ function renderDigitalFinish(){
   if(fcDigital.streakMode && fcDigital.streakCompleted){
     var sc = (myStreakUi.data && myStreakUi.data.streak && myStreakUi.data.streak.current) || 1;
     html += '<h2>&#128293; Streak day secured!</h2>'+
-      '<div style="color:var(--muted); font-size:13px;">Current streak: '+sc+' day'+(sc===1?'':'s')+'.</div>';
+      '<div style="color:var(--muted); font-size:var(--fs-subtext);">Current streak: '+sc+' day'+(sc===1?'':'s')+'.</div>';
   } else {
     html += '<h2>Session complete!</h2>'+
-      '<div style="color:var(--muted); font-size:13px;">You went through '+fcDigital.totalSeen+' card'+(fcDigital.totalSeen===1?'':'s')+
+      '<div style="color:var(--muted); font-size:var(--fs-subtext);">You went through '+fcDigital.totalSeen+' card'+(fcDigital.totalSeen===1?'':'s')+
         ' across '+roundsLabel+'.</div>';
   }
   if(fcDigital.ratable){
@@ -6906,7 +6913,7 @@ function renderDigitalFinish(){
         '<div class="a">'+counts.A+'<span>Amber</span></div>'+
         '<div class="g">'+counts.G+'<span>Green</span></div>'+
       '</div>'+
-      '<div style="color:var(--muted); font-size:13px; margin-top:-8px; margin-bottom:4px;">'+ratedCount+' word'+(ratedCount===1?'':'s')+' rated this session</div>';
+      '<div style="color:var(--muted); font-size:var(--fs-subtext); margin-top:-8px; margin-bottom:4px;">'+ratedCount+' word'+(ratedCount===1?'':'s')+' rated this session</div>';
   }
   html +=
     '<div class="dc-finish-actions">'+

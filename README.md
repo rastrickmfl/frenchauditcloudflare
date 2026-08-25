@@ -27,6 +27,12 @@ pushed), so the project is laid out to not depend on it.
 - `.assetsignore` — tells Cloudflare which of the files above are *not*
   public static assets (the `.js`/`.json`/`.sql`/`.md`/config files) — only
   `index.html` and `seed-demo-account.html` are actually served to visitors
+- `design-lint.mjs` — a design-consistency check for `index.html` (font
+  sizes/weights/families, spacing conventions). Run `npm run design:lint`
+  before delivering any round that touches CSS or adds a new screen/card/
+  button — see the file's own header comment and the Cowork project's
+  status doc ("Design-system enforcement" section) for what it checks and
+  why each rule exists.
 
 See `DEPLOY.md` for how to get this live on Cloudflare, and for how to fix
 a repo that already has the earlier flattened/broken version pushed to it.
