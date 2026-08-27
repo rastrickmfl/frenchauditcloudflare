@@ -63,7 +63,8 @@
     font-size:var(--fs-eyebrow); font-weight:800; letter-spacing:.03em; text-transform:uppercase;
     padding:4px 10px; border-radius:20px;
   }
-  header button.back{background:rgba(255,255,255,.15); color:#fff; border:none; border-radius:10px; padding:8px 12px; font-size:var(--fs-text);}
+  header button.back{background:rgba(255,255,255,.15); color:#fff; border:none; border-radius:10px; padding:8px 12px; font-size:var(--fs-text); line-height:1; display:flex; align-items:center; justify-content:center;}
+  header button.back .arrow-ic{width:1em; height:1em; vertical-align:0;}
   .info-btn{
     width:28px; height:28px; flex-shrink:0; padding:0; margin-left:6px;
     border:1.5px solid rgba(255,255,255,.7); border-radius:50%; background:rgba(255,255,255,.12);
@@ -87,6 +88,38 @@
   .tile.is-past{opacity:.55;} /* Independent Study: deadline has passed — still fully clickable, just visually de-emphasised */
   .tile .sub{font-size:var(--fs-subtext); color:var(--muted); font-weight:var(--fw-subtext); margin-top:3px;}
   .tile .chev{color:var(--purple); font-size:20px;}
+  /* Single arrow design used everywhere the app needs a literal back/
+     forward arrow (back-navigation links, French<->English direction
+     toggles) — a minimalist rounded-stroke chevron (round cap/join),
+     not a font-rendered Unicode character, so it renders identically in
+     every browser/OS. Colour comes from currentColor, so it
+     automatically matches whatever text colour surrounds it (white in
+     the navy header, purple in back-links/tiles, etc). .arrow-ic-back
+     mirrors the same path via CSS rather than keeping a second
+     hand-drawn path — an earlier version hand-typed a second "mirrored"
+     path that wasn't quite symmetric, which is exactly the class of bug
+     a single shared source-of-truth + CSS mirror rules out. The path's
+     own coordinates (8.55/15.55, not a round 9/16) aren't arbitrary: a
+     sharp corner rendered with a round line-join bulges out slightly
+     further than a round end-cap does at the same stroke width, so a
+     naively-centered path still renders visually off-centre — these
+     values were nudged and then confirmed with a pixel-measured render
+     (zero px offset) rather than eyeballed. */
+  .arrow-ic{width:0.85em; height:0.85em; vertical-align:-0.08em; flex-shrink:0;}
+  .arrow-ic-back{transform:scaleX(-1);}
+  /* Compact left-aligned back-link: a small icon-only box styled like
+     the header's own back button, sitting beside a plain text label,
+     replacing the old full-width centred ".pill" treatment for back
+     navigation specifically. The whole row is the click target, not
+     just the box, for a comfortable tap area. */
+  .back-link-row{display:flex; align-items:center; gap:10px; cursor:pointer; margin-bottom:14px;}
+  .back-link-box{
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+    width:36px; height:36px; border-radius:10px;
+    border:2px solid var(--purple); color:var(--purple); background:#fff;
+  }
+  .back-link-box .arrow-ic{width:15px; height:15px; vertical-align:0;}
+  .back-link-label{font-weight:700; font-size:var(--fs-text); color:var(--purple);}
   .pill-row{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;}
   .pill{
     flex:1; min-width:150px; text-align:center; padding:10px 8px; border-radius:12px;
@@ -268,6 +301,11 @@
   .streak-count{color:#8A6A00; font-weight:700; margin-top:4px;}
   .streak-freeze-note{color:#8A6A00; font-size:var(--fs-subtext); margin:8px 0 0; opacity:.9;}
   .streak-req-note{color:#8A6A00; font-size:var(--fs-subtext); margin:8px 0 0; opacity:.75;}
+  .streak-header-badge{display:flex; align-items:center; gap:5px; flex-shrink:0; background:#FDE3C7; color:#8A4B00; font-weight:800; font-size:var(--fs-text); padding:6px 12px; border-radius:20px;}
+  .streak-header-badge .flame{font-size:18px; line-height:1;}
+  .award-card{display:flex; align-items:center; gap:14px;}
+  .award-card .trophy{font-size:28px; line-height:1; flex-shrink:0;}
+  .award-card .award-title{color:#8A6A00; font-weight:800; font-size:var(--fs-title); line-height:1.3;}
   .info-modal-overlay{
     display:none; position:fixed; inset:0; background:rgba(2,3,64,.55); z-index:50;
     align-items:center; justify-content:center; padding:20px;
@@ -297,8 +335,9 @@
 <header>
   <div class="row">
     <span class="flag-icon" aria-hidden="true"></span>
-    <button class="back" id="backBtn" style="display:none;">&larr;</button>
+    <button class="back" id="backBtn" style="display:none;"><svg class="arrow-ic arrow-ic-back" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8.55 5L15.55 12L8.55 19" fill="none" stroke="currentColor" stroke-width="3.25" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
     <h1 id="pageTitle">GCSE French Vocab Audit</h1>
+    <div id="streakHeaderBadge" class="streak-header-badge" style="display:none;"></div>
     <button id="infoBtn" class="info-btn" style="display:none;" aria-label="Page information">i</button>
   </div>
   <div id="teacherBadge" class="teacher-badge" style="display:none;">&#128105;&#8205;&#127979; Teacher account</div>
@@ -2868,8 +2907,29 @@ function clearInfoButton(){
   infoBtn.onclick = null;
 }
 
+function setStreakHeaderBadge(days){
+  var badgeEl = document.getElementById("streakHeaderBadge");
+  if(!badgeEl) return;
+  badgeEl.innerHTML = '<span class="flame">&#128293;</span><span>'+days+'</span>';
+  badgeEl.style.display = "flex";
+}
+function clearStreakHeaderBadge(){
+  var badgeEl = document.getElementById("streakHeaderBadge");
+  if(!badgeEl) return;
+  badgeEl.style.display = "none";
+}
+
 function el(html){ var d=document.createElement("div"); d.innerHTML=html.trim(); return d.firstChild; }
 function esc(s){ return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;"); }
+
+// The one arrow design used everywhere the app needs a literal back/
+// forward arrow — see the .arrow-ic CSS comment above for why this is a
+// custom SVG shape (a minimalist rounded-stroke chevron, not a solid
+// arrowhead) rather than a Unicode character. Both constants share the
+// same <path> "d"; ARROW_BACK_HTML only adds the .arrow-ic-back class,
+// which mirrors it via CSS transform, so the two can never drift apart.
+var ARROW_FWD_HTML = '<svg class="arrow-ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8.55 5L15.55 12L8.55 19" fill="none" stroke="currentColor" stroke-width="3.25" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+var ARROW_BACK_HTML = '<svg class="arrow-ic arrow-ic-back" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8.55 5L15.55 12L8.55 19" fill="none" stroke="currentColor" stroke-width="3.25" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 function normText(s){ return (s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[’']/g,""); }
 
 // ---------- pronunciation (Web Speech API) ----------
@@ -2915,6 +2975,7 @@ function render(){
   backBtn.style.display = (route.name==="unit" || route.name==="personal" || route.name==="classes" || route.name==="teacherLists" || route.name==="teacherListView" || route.name==="independentStudyTask" || route.name==="manageIndependentStudy") ? "" : "none";
   hideInfoModal();
   clearInfoButton();
+  clearStreakHeaderBadge();
   app.innerHTML = "";
   // These three intercepts run before the normal route dispatch below, and on
   // whichever tab/screen kicked them off, so a Digital Flashcards session, a
@@ -3031,6 +3092,17 @@ var vocabOpenCategory = null; // "aqa" | "teacher" | "personal" | null — which
 function renderHome(){
   titleEl.textContent = "GCSE French Vocab Audit";
 
+  if(myStreakUi.data && myStreakUi.data.streak){
+    setStreakHeaderBadge(myStreakUi.data.streak.current);
+  } else {
+    clearStreakHeaderBadge();
+  }
+
+  if(myStreakUi.data && myStreakUi.data.medal && myStreakUi.data.medal.awardedToday){
+    var todayAwardCard = renderMedalAwardCard(medalByDays(myStreakUi.data.medal.highestDays));
+    if(todayAwardCard) app.appendChild(todayAwardCard);
+  }
+
   var streakBanner = renderStreakBanner();
   if(streakBanner) app.appendChild(streakBanner);
 
@@ -3044,6 +3116,14 @@ function renderHome(){
     '</div>'
   );
   app.appendChild(searchCard);
+
+  var searchBoxEl = searchCard.querySelector("#searchBox");
+  searchBoxEl.addEventListener("focus", function(){
+    var headerEl = document.querySelector("header");
+    var headerH = headerEl ? headerEl.offsetHeight : 0;
+    searchCard.style.scrollMarginTop = headerH + "px";
+    searchCard.scrollIntoView({behavior:"smooth", block:"start"});
+  });
 
   var tierCard = el(
     '<div class="card">'+
@@ -3171,6 +3251,13 @@ function renderHome(){
     var shown = matches.slice(0,40);
     if(shown.length===0){
       resultsWrap.appendChild(el('<p class="muted">No matches found.</p>'));
+      resultsWrap.appendChild(el('<p class="muted" style="margin-top:6px;">Not on the GCSE list? Look up &ldquo;'+esc(q)+'&rdquo; in a dictionary:</p>'));
+      resultsWrap.appendChild(el(
+        '<div class="btn-row" style="margin-top:6px;">'+
+          '<a class="btn secondary" target="_blank" rel="noopener" href="https://www.wordreference.com/fren/'+encodeURIComponent(q)+'">French '+ARROW_FWD_HTML+' English</a>'+
+          '<a class="btn secondary" target="_blank" rel="noopener" href="https://www.wordreference.com/enfr/'+encodeURIComponent(q)+'">English '+ARROW_FWD_HTML+' French</a>'+
+        '</div>'
+      ));
       return;
     }
     shown.forEach(function(id){
@@ -3214,10 +3301,8 @@ function personalRerender(){ render(); window.scrollTo(0,0); }
 function getPersonalSet(id){ return state.personalLists.filter(function(x){ return x.id===id; })[0] || null; }
 function pvBackToLanding(){ myVocab = {mode:"landing", setId:null}; personalRerender(); }
 function pvBackLink(){
-  var row = el('<div class="pill-row" style="margin-top:14px;"></div>');
-  var backBtnEl = el('<div class="pill">&larr; Back to my vocab sets</div>');
-  backBtnEl.addEventListener("click", pvBackToLanding);
-  row.appendChild(backBtnEl);
+  var row = el('<div class="back-link-row"><div class="back-link-box">'+ARROW_BACK_HTML+'</div><span class="back-link-label">Back to my vocab sets</span></div>');
+  row.addEventListener("click", pvBackToLanding);
   app.appendChild(row);
 }
 function pvSlugify(s){ return ((s||"set").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/(^-+|-+$)/g,"")) || "set"; }
@@ -3951,22 +4036,18 @@ function renderPupilsTable(){
 }
 
 function ptBackLink(){
-  var row = el('<div class="pill-row" style="margin-top:14px;"></div>');
-  var backBtnEl = el('<div class="pill">&larr; '+(classesUi.classId ? 'Back to class' : 'Back to classes')+'</div>');
-  backBtnEl.addEventListener("click", function(){
+  var row = el('<div class="back-link-row"><div class="back-link-box">'+ARROW_BACK_HTML+'</div><span class="back-link-label">'+(classesUi.classId ? 'Back to class' : 'Back to classes')+'</span></div>');
+  row.addEventListener("click", function(){
     classesUi.mode = classesUi.classId ? "detail" : "list";
     classesRerender();
   });
-  row.appendChild(backBtnEl);
   app.appendChild(row);
 }
 
 function clBackToList(){ classesUi.mode = "list"; classesUi.classId = null; classesRerender(); }
 function clBackLink(){
-  var row = el('<div class="pill-row" style="margin-top:14px;"></div>');
-  var backBtnEl = el('<div class="pill">&larr; Back to classes</div>');
-  backBtnEl.addEventListener("click", clBackToList);
-  row.appendChild(backBtnEl);
+  var row = el('<div class="back-link-row"><div class="back-link-box">'+ARROW_BACK_HTML+'</div><span class="back-link-label">Back to classes</span></div>');
+  row.addEventListener("click", clBackToList);
   app.appendChild(row);
 }
 
@@ -4446,17 +4527,15 @@ function renderTlManageAnalytics(){
   if(!list){ tlBackToList(); return; }
   app.appendChild(el('<div class="card"><b>&#128202; Analytics &mdash; '+esc(list.name)+'</b></div>'));
   renderClassRagAnalytics("tl:"+list.id, list.words, teacherListRecipients(list), teacherListsRerender);
-  var backPill = el('<div class="pill">&larr; Back to list</div>');
+  var backPill = el('<div class="back-link-row"><div class="back-link-box">'+ARROW_BACK_HTML+'</div><span class="back-link-label">Back to list</span></div>');
   backPill.addEventListener("click", function(){ teacherListsUi.mode = "detail"; teacherListsRerender(); });
   app.appendChild(backPill);
 }
 
 function tlBackToList(){ teacherListsUi.mode = "list"; teacherListsUi.listId = null; teacherListsRerender(); }
 function tlBackLink(){
-  var row = el('<div class="pill-row" style="margin-top:14px;"></div>');
-  var backBtnEl = el('<div class="pill">&larr; Back to vocab lists</div>');
-  backBtnEl.addEventListener("click", tlBackToList);
-  row.appendChild(backBtnEl);
+  var row = el('<div class="back-link-row"><div class="back-link-box">'+ARROW_BACK_HTML+'</div><span class="back-link-label">Back to vocab lists</span></div>');
+  row.addEventListener("click", tlBackToList);
   app.appendChild(row);
 }
 
@@ -4937,10 +5016,8 @@ function renderManageIndependentStudy(){
 
 function istBackToList(){ isTasksUi.mode = "list"; isTasksUi.taskId = null; isTasksRerender(); }
 function istBackLink(){
-  var row = el('<div class="pill-row" style="margin-top:14px;"></div>');
-  var backBtnEl = el('<div class="pill">&larr; Back to Independent Study tasks</div>');
-  backBtnEl.addEventListener("click", istBackToList);
-  row.appendChild(backBtnEl);
+  var row = el('<div class="back-link-row"><div class="back-link-box">'+ARROW_BACK_HTML+'</div><span class="back-link-label">Back to Independent Study tasks</span></div>');
+  row.addEventListener("click", istBackToList);
   app.appendChild(row);
 }
 
@@ -5445,10 +5522,8 @@ function closePupilDetail(){
   if(back) back(); else render();
 }
 function pdBackPill(){
-  var row = el('<div class="pill-row" style="margin-top:14px;"></div>');
-  var backBtnEl = el('<div class="pill">&larr; Back</div>');
-  backBtnEl.addEventListener("click", closePupilDetail);
-  row.appendChild(backBtnEl);
+  var row = el('<div class="back-link-row"><div class="back-link-box">'+ARROW_BACK_HTML+'</div><span class="back-link-label">Back</span></div>');
+  row.addEventListener("click", closePupilDetail);
   app.appendChild(row);
 }
 
@@ -5762,7 +5837,7 @@ function renderIsManageAnalytics(){
   if(!task){ istBackToList(); return; }
   app.appendChild(el('<div class="card"><b id="istaTitle">&#128202; Analytics &mdash; '+esc(task.name)+'</b></div>'));
   renderClassRagAnalytics("istask:"+task.id, task.words, isTaskRecipients(task), isTasksRerender);
-  var backPill = el('<div class="pill">&larr; Back to task</div>');
+  var backPill = el('<div class="back-link-row"><div class="back-link-box">'+ARROW_BACK_HTML+'</div><span class="back-link-label">Back to task</span></div>');
   backPill.addEventListener("click", function(){ isTasksUi.mode = "detail"; isTasksRerender(); });
   app.appendChild(backPill);
 }
@@ -5918,7 +5993,8 @@ function postStreakCompletion(){
           streak: data.streak,
           todayCompleted: true,
           isSchoolDay: myStreakUi.data ? myStreakUi.data.isSchoolDay : isWeekdayLocal(new Date()),
-          freezeNotice: data.freezeNotice
+          freezeNotice: data.freezeNotice,
+          medal: data.medal
         };
       }
       return data;
@@ -5985,6 +6061,34 @@ function startStreakSession(){
   if(pending===0) launch();
 }
 
+// Streak-day milestones. `days` values must mirror MEDAL_THRESHOLDS in
+// streaks.js exactly — that's the source of truth for which milestone was
+// actually crossed and when; this array only supplies the display emoji/name.
+var MEDALS = [
+  {days:5,   emoji:"🥖", name:"Bronze Baguette"},
+  {days:10,  emoji:"🐌", name:"Silver Escargot"},
+  {days:15,  emoji:"🥐", name:"Golden Croissant"},
+  {days:30,  emoji:"💪", name:"Tour de Force"},
+  {days:45,  emoji:"⭐", name:"Étoile Brillante"},
+  {days:55,  emoji:"🧀", name:"Grand Fromage"},
+  {days:65,  emoji:"🍮", name:"Crème de la Crème"},
+  {days:75,  emoji:"😮", name:"Oh Là Là"},
+  {days:85,  emoji:"🍰", name:"C’est du gâteau"},
+  {days:100, emoji:"🐸", name:"Golden Grenouille"},
+  {days:125, emoji:"🏎️", name:"Le Grand Prix"},
+  {days:150, emoji:"🏅", name:"L’olympien / L’olympienne"}
+];
+function medalByDays(days){
+  if(!days) return null;
+  var found = null;
+  MEDALS.forEach(function(m){ if(m.days===days) found = m; });
+  return found;
+}
+function renderMedalAwardCard(medal){
+  if(!medal) return null;
+  return el('<div class="card streak-card award-card"><span class="trophy">&#127942;</span><div class="award-title">You have earned the '+medal.emoji+' '+esc(medal.name)+' award</div></div>');
+}
+
 // Stands out deliberately from the rest of the interface (soft yellow,
 // colour-matched title) — this is meant to read as "today's headline task"
 // on the Vocab home page, not blend in with the ordinary white cards below
@@ -5999,6 +6103,7 @@ function renderStreakBanner(){
     return null;
   }
   var d = myStreakUi.data;
+  if(!d || !d.streak) return null; // defensive: a stubbed/mocked /api/streaks response may omit streak
   if(d.todayCompleted) return null;
   var n = d.streak.current;
   var dayWord = n===1 ? "day" : "days";
@@ -6072,7 +6177,7 @@ function renderIsTaskScreen(taskId){
   if(!task){
     titleEl.textContent = "Independent Study";
     app.appendChild(el('<div class="card"><b>Task not found</b><p class="muted">This task may no longer be shared with you.</p></div>'));
-    var backNF = el('<button class="btn secondary">&larr; Back to Independent Study</button>');
+    var backNF = el('<button class="btn secondary">'+ARROW_BACK_HTML+' Back to Independent Study</button>');
     backNF.addEventListener("click", function(){ go("independentStudy", null); });
     app.appendChild(backNF);
     return;
@@ -6118,10 +6223,8 @@ function renderIsTaskMain(task){
   if(task.words.length===0){
     app.appendChild(el('<p class="muted">This task doesn\'t have any words in it yet — check back once your teacher\'s added some.</p>'));
   }
-  var backRow = el('<div class="pill-row" style="margin-top:14px;"></div>');
-  var backPill = el('<div class="pill">&larr; Back to Independent Study</div>');
-  backPill.addEventListener("click", function(){ go("independentStudy", null); });
-  backRow.appendChild(backPill);
+  var backRow = el('<div class="back-link-row"><div class="back-link-box">'+ARROW_BACK_HTML+'</div><span class="back-link-label">Back to Independent Study</span></div>');
+  backRow.addEventListener("click", function(){ go("independentStudy", null); });
   app.appendChild(backRow);
 }
 
@@ -6151,10 +6254,8 @@ function renderIsLearnOptions(task){
   });
   app.appendChild(paperTile);
   app.appendChild(msg);
-  var backRow = el('<div class="pill-row" style="margin-top:14px;"></div>');
-  var backPill = el('<div class="pill">&larr; Back</div>');
-  backPill.addEventListener("click", function(){ isDetailUi.screen = "detail"; render(); window.scrollTo(0,0); });
-  backRow.appendChild(backPill);
+  var backRow = el('<div class="back-link-row"><div class="back-link-box">'+ARROW_BACK_HTML+'</div><span class="back-link-label">Back</span></div>');
+  backRow.addEventListener("click", function(){ isDetailUi.screen = "detail"; render(); window.scrollTo(0,0); });
   app.appendChild(backRow);
 }
 
@@ -6422,10 +6523,10 @@ function renderFcStepDirection(){
   // combination set is huge, so digital verb sessions always go straight to a
   // Lucky dip rather than offering a "complete set" that isn't really one deck.
   var setVerbCount = function(){ if(fcWizard.type==="verb"){ fcWizard.count=30; fcWizard.luckyDip=true; } };
-  var frTile = el('<div class="tile"><div><div>French &rarr; English</div><div class="sub">See the French, recall the English</div></div><div class="chev">&rsaquo;</div></div>');
+  var frTile = el('<div class="tile"><div><div>French '+ARROW_FWD_HTML+' English</div><div class="sub">See the French, recall the English</div></div><div class="chev">&rsaquo;</div></div>');
   frTile.addEventListener("click", function(){ fcWizard.direction="fr2en"; setVerbCount(); fcGoNext(); });
   app.appendChild(frTile);
-  var enTile = el('<div class="tile"><div><div>English &rarr; French</div><div class="sub">See the English, recall the French</div></div><div class="chev">&rsaquo;</div></div>');
+  var enTile = el('<div class="tile"><div><div>English '+ARROW_FWD_HTML+' French</div><div class="sub">See the English, recall the French</div></div><div class="chev">&rsaquo;</div></div>');
   enTile.addEventListener("click", function(){ fcWizard.direction="en2fr"; setVerbCount(); fcGoNext(); });
   app.appendChild(enTile);
   fcBackAndRestart();
@@ -7027,8 +7128,8 @@ function renderDigitalSession(){
   if(fcDigital.showDirectionToggle){
     var dirToggle = el(
       '<div class="segmented" style="margin-bottom:2px;">'+
-        '<button data-dir="fr2en" class="'+(fcDigital.direction==="fr2en"?"active":"")+'">French &rarr; English</button>'+
-        '<button data-dir="en2fr" class="'+(fcDigital.direction==="en2fr"?"active":"")+'">English &rarr; French</button>'+
+        '<button data-dir="fr2en" class="'+(fcDigital.direction==="fr2en"?"active":"")+'">French '+ARROW_FWD_HTML+' English</button>'+
+        '<button data-dir="en2fr" class="'+(fcDigital.direction==="en2fr"?"active":"")+'">English '+ARROW_FWD_HTML+' French</button>'+
       '</div>'
     );
     dirToggle.querySelectorAll("button").forEach(function(b){
@@ -7120,13 +7221,13 @@ function renderDigitalSession(){
   });
 
   var navRow = el('<div class="dc-nav-row"></div>');
-  var prevBtn = el('<button'+(fcDigital.idx===0 ? ' disabled' : '')+'>&larr; Previous</button>');
+  var prevBtn = el('<button'+(fcDigital.idx===0 ? ' disabled' : '')+'>'+ARROW_BACK_HTML+' Previous</button>');
   prevBtn.addEventListener("click", function(){
     cancelScheduledDigitalAdvance();
     if(fcDigital.idx>0){ fcDigital.idx--; fcDigital.revealed=false; render(); }
   });
   navRow.appendChild(prevBtn);
-  var advanceBtn = el('<button class="skip">'+(fcDigital.ratable ? "Skip" : "Next")+' &rarr;</button>');
+  var advanceBtn = el('<button class="skip">'+(fcDigital.ratable ? "Skip" : "Next")+' '+ARROW_FWD_HTML+'</button>');
   advanceBtn.addEventListener("click", function(){
     cancelScheduledDigitalAdvance();
     advanceDigitalCard();
@@ -29444,7 +29545,7 @@ function renderVerbs(){
 
   function showDetail(v){
     bodyWrap.innerHTML = "";
-    var backBtnEl = el('<button class="btn secondary" style="margin-bottom:10px;">&larr; Back to verb list</button>');
+    var backBtnEl = el('<button class="btn secondary" style="margin-bottom:10px;">'+ARROW_BACK_HTML+' Back to verb list</button>');
     backBtnEl.addEventListener("click", function(){
       var sb = document.getElementById("verbSearchBox");
       if(sb) sb.value = "";
@@ -29863,7 +29964,7 @@ function wizardStepHeader(title, seq, stepKey){
 function wizardBackRestart(seq, stepKey, onBack, onRestart){
   var row = el('<div class="pill-row" style="margin-top:14px;"></div>');
   if(stepKey !== seq[0]){
-    var backBtn = el('<div class="pill">&larr; Back</div>');
+    var backBtn = el('<div class="pill">'+ARROW_BACK_HTML+' Back</div>');
     backBtn.addEventListener("click", onBack);
     row.appendChild(backBtn);
   }
@@ -30105,8 +30206,8 @@ function renderQuick10Results(){
     var ist2 = getMyIsTask(q10Wizard.isTaskId);
     var dirToggle10 = el(
       '<div class="segmented" style="margin-bottom:6px;">'+
-        '<button data-dir="fr" class="'+(q10Wizard.direction==="fr"?"active":"")+'">French &rarr; English</button>'+
-        '<button data-dir="en" class="'+(q10Wizard.direction==="en"?"active":"")+'">English &rarr; French</button>'+
+        '<button data-dir="fr" class="'+(q10Wizard.direction==="fr"?"active":"")+'">French '+ARROW_FWD_HTML+' English</button>'+
+        '<button data-dir="en" class="'+(q10Wizard.direction==="en"?"active":"")+'">English '+ARROW_FWD_HTML+' French</button>'+
       '</div>'
     );
     dirToggle10.querySelectorAll("button").forEach(function(b){
@@ -30178,7 +30279,7 @@ function renderQuick10Results(){
   });
   actionsRow.appendChild(regenBtn);
   if(q10Wizard.type==="isTask"){
-    var backToTaskBtn = el('<button class="btn secondary">&larr; Back to task</button>');
+    var backToTaskBtn = el('<button class="btn secondary">'+ARROW_BACK_HTML+' Back to task</button>');
     backToTaskBtn.addEventListener("click", function(){
       q10ShowResults = false;
       q10Wizard = {type:null, colors:null, theme:null, difficulty:null, direction:null, customListId:null, personalSetId:null, teacherListId:null, isTaskId:null, headerTitle:null};
@@ -30248,6 +30349,15 @@ function downloadFile(text, filename, mime){
 
 function renderSync(){
   titleEl.textContent = "Settings";
+
+  if(ACCOUNT){
+    if(myStreakUi.data === null){
+      if(!myStreakUi.loading) loadMyStreak(render);
+    } else if(myStreakUi.data.medal && myStreakUi.data.medal.highestDays){
+      var pinnedAwardCard = renderMedalAwardCard(medalByDays(myStreakUi.data.medal.highestDays));
+      if(pinnedAwardCard) app.appendChild(pinnedAwardCard);
+    }
+  }
 
   var acctCard = el(
     '<div class="card"><b>Your account</b>'+
