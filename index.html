@@ -7115,10 +7115,20 @@ function scheduleDigitalAdvance(delayMs){
 }
 
 function renderDigitalSession(){
+  // Streak/bonus sessions are launched straight from the Vocab home banner
+  // (startStreakSession) rather than through the ordinary Flashcards wizard,
+  // so fcWizard is never populated for them -- fcSummaryLines() reads
+  // fcWizard and would show whatever unrelated wizard state happens to be
+  // lying around (or its untouched defaults, e.g. "Verbs · · null
+  // randomised flashcards"). Give streak/bonus sessions their own summary
+  // instead of falling through to that.
+  var summaryLine = fcDigital.streakMode
+    ? esc(fcDigital.headerTitle || "Daily Streak") + ' &middot; ' + fcDigital.deck.length + ' words'
+    : fcSummaryLines().map(esc).join(' &middot; ');
   app.appendChild(el(
     '<div class="card" style="font-size:var(--fs-subtext); color:var(--muted); line-height:1.5;">'+
       '<b style="color:var(--purple); font-size:var(--fs-subtext);">Digital Flashcards</b><br>'+
-      fcSummaryLines().map(esc).join(' &middot; ')+
+      summaryLine+
     '</div>'
   ));
 
@@ -7209,8 +7219,15 @@ function renderDigitalSession(){
       if(fcDigital.advancing) return;
       var val = btn.dataset.r;
       if(item.id){
-        if(state.ratings[item.id]===val){ delete state.ratings[item.id]; }
-        else{ state.ratings[item.id]=val; }
+        // Unlike the plain word-list rating dots (wordCardHtml), tapping
+        // the colour a card is already showing here is a *reconfirm*, not
+        // an undo -- the reveal screen pre-highlights the existing rating,
+        // so re-tapping it is the natural way to say "yep, still red"
+        // mid-session. Clearing a rating entirely is still available from
+        // the ordinary word-list view; deliberately not replicating that
+        // toggle-to-delete behaviour here, where it would silently wipe a
+        // rating the pupil meant to confirm.
+        state.ratings[item.id] = val;
         saveState();
         refreshProgressIndicators();
       }
@@ -7249,16 +7266,28 @@ function renderDigitalSession(){
 }
 
 function renderDigitalFinish(){
+  // Reflects each card's actual current rating (getRating, same source
+  // every progress bar in the app uses), not just the ones explicitly
+  // re-tapped this session -- a card left at its existing colour is still
+  // part of the deck and should still show up here. Always sums to the
+  // deck size, so there's no separate "N rated this session" figure that
+  // could disagree with it.
   var counts = {R:0, A:0, G:0};
-  Object.keys(fcDigital.sessionRatings).forEach(function(k){ counts[fcDigital.sessionRatings[k]]++; });
-  var ratedCount = Object.keys(fcDigital.sessionRatings).length;
+  fcDigital.deck.forEach(function(w){ if(w.id) counts[getRating(w.id)]++; });
   var roundsLabel = fcDigital.lap===1 ? "1 round" : fcDigital.lap+" rounds";
 
   var html = '<div class="dc-finish">';
   if(fcDigital.streakMode && fcDigital.streakCompleted){
-    var sc = (myStreakUi.data && myStreakUi.data.streak && myStreakUi.data.streak.current) || 1;
-    html += '<h2>&#128293; Streak day secured!</h2>'+
-      '<div style="color:var(--muted); font-size:var(--fs-subtext);">Current streak: '+sc+' day'+(sc===1?'':'s')+'.</div>';
+    var streakData = myStreakUi.data && myStreakUi.data.streak;
+    var sc = (streakData && typeof streakData.current === "number") ? streakData.current : 0;
+    var isBonusDay = myStreakUi.data && myStreakUi.data.isSchoolDay === false;
+    if(isBonusDay){
+      html += '<h2>&#10024; Bonus practice complete!</h2>'+
+        '<div style="color:var(--muted); font-size:var(--fs-subtext);">Nice work &mdash; weekend sessions are optional and don&rsquo;t change your streak count.</div>';
+    } else {
+      html += '<h2>&#128293; Streak day secured!</h2>'+
+        '<div style="color:var(--muted); font-size:var(--fs-subtext);">Current streak: '+sc+' day'+(sc===1?'':'s')+'.</div>';
+    }
   } else {
     html += '<h2>Session complete!</h2>'+
       '<div style="color:var(--muted); font-size:var(--fs-subtext);">You went through '+fcDigital.totalSeen+' card'+(fcDigital.totalSeen===1?'':'s')+
@@ -7270,8 +7299,7 @@ function renderDigitalFinish(){
         '<div class="r">'+counts.R+'<span>Red</span></div>'+
         '<div class="a">'+counts.A+'<span>Amber</span></div>'+
         '<div class="g">'+counts.G+'<span>Green</span></div>'+
-      '</div>'+
-      '<div style="color:var(--muted); font-size:var(--fs-subtext); margin-top:-8px; margin-bottom:4px;">'+ratedCount+' word'+(ratedCount===1?'':'s')+' rated this session</div>';
+      '</div>';
   }
   html +=
     '<div class="dc-finish-actions">'+
