@@ -20,9 +20,10 @@
 // spend a pupil's monthly freeze just by opening the page. If omitted,
 // the raw last-saved streak numbers are returned as-is.
 
-import { ACCOUNT_SET, TEACHER_SET } from "./accounts.js";
+import { ACCOUNT_SET } from "./accounts.js";
 import { kvGetMany, json } from "./kv.js";
 import { applyStreakTransition, defaultRecord } from "./streaks.js";
+import { verifyTeacherSession } from "./teacher-auth.js";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -31,7 +32,7 @@ export async function handlePupilAnalytics(request, env, url) {
   if (!account || !ACCOUNT_SET.has(account)) {
     return json({ error: "unknown account" }, 400);
   }
-  if (!TEACHER_SET.has(account)) {
+  if (!(await verifyTeacherSession(request, env, account))) {
     return json({ error: "teacher accounts only" }, 403);
   }
   if (request.method !== "GET") {

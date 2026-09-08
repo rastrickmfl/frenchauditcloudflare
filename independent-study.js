@@ -11,8 +11,9 @@
 // and its Learn/Test entry points stay a separate concept from an
 // untimed shared vocab list.
 
-import { ACCOUNT_SET, TEACHER_SET } from "./accounts.js";
+import { ACCOUNT_SET } from "./accounts.js";
 import { kvGet, kvSet, json } from "./kv.js";
+import { verifyTeacherSession } from "./teacher-auth.js";
 
 const STORE = "independent-study";
 const DEFAULT_TASKS = [];
@@ -30,7 +31,7 @@ export async function handleIndependentStudy(request, env, url) {
   }
 
   if (request.method === "POST") {
-    if (!TEACHER_SET.has(account)) {
+    if (!(await verifyTeacherSession(request, env, account))) {
       return json({ error: "teacher accounts only" }, 403);
     }
     let body;

@@ -12,8 +12,9 @@
 // 5 logins" was the ask, and a capped array is the simplest thing that
 // answers it without unbounded growth per account.
 
-import { ACCOUNT_SET, TEACHER_SET } from "./accounts.js";
+import { ACCOUNT_SET } from "./accounts.js";
 import { kvGet, kvSet, json } from "./kv.js";
+import { verifyTeacherSession } from "./teacher-auth.js";
 
 const STORE = "logins";
 const MAX_LOGINS = 5;
@@ -28,7 +29,7 @@ export async function handleLogins(request, env, url) {
     const target = url.searchParams.get("target");
     let who = account;
     if (target && target !== account) {
-      if (!TEACHER_SET.has(account)) {
+      if (!(await verifyTeacherSession(request, env, account))) {
         return json({ error: "teacher accounts only" }, 403);
       }
       if (!ACCOUNT_SET.has(target)) {

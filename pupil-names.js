@@ -16,6 +16,7 @@
 
 import { ACCOUNT_SET, TEACHER_SET } from "./accounts.js";
 import { kvGetMany, kvSet, json } from "./kv.js";
+import { verifyTeacherSession } from "./teacher-auth.js";
 
 const STORE = "pupil-names";
 const MAX_LEN = 40;
@@ -25,7 +26,7 @@ export async function handlePupilNames(request, env, url) {
   if (!account || !ACCOUNT_SET.has(account)) {
     return json({ error: "unknown account" }, 400);
   }
-  if (!TEACHER_SET.has(account)) {
+  if (!(await verifyTeacherSession(request, env, account))) {
     return json({ error: "teacher accounts only" }, 403);
   }
 

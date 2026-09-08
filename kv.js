@@ -39,6 +39,15 @@ export async function kvSet(env, store, key, value) {
   ).bind(store, key, JSON.stringify(value), new Date().toISOString()).run();
 }
 
+// Used by teacher-auth.js to drop a session token on logout. Nothing else
+// currently needs a hard delete (every other store is fine being
+// overwritten/left stale), so this stayed unused until sessions needed it.
+export async function kvDelete(env, store, key) {
+  await env.DB.prepare(
+    "DELETE FROM kv_store WHERE store = ? AND key = ?"
+  ).bind(store, key).run();
+}
+
 export function json(body, status) {
   return new Response(JSON.stringify(body), {
     status: status || 200,

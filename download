@@ -12,6 +12,8 @@ logins.js
 streaks.js
 pupil-analytics.js
 pupil-names.js
+teacher-auth.js
+rate-limit.js
 accounts.json
 0001_init.sql
 README.md

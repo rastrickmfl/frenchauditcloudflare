@@ -258,7 +258,17 @@ async function launchApp() {
   });
 
   await page.addInitScript(() => {
-    try { localStorage.setItem('gcseVocabAudit_account', 'trifle-18'); } catch (e) {}
+    // 8 Sep 2026: teacher accounts were renamed off the old trifle-NN demo
+    // codes, and isTeacher() now also requires a matching session token
+    // (not just the account name) — see teacher-auth.js /
+    // security-hardening notes. The mocked API routes above don't
+    // actually check this token's validity, so a fixed fake value is
+    // fine for walking the UI; only the client-side isTeacher() shape
+    // check needs satisfying.
+    try {
+      localStorage.setItem('gcseVocabAudit_account', 'strarss');
+      localStorage.setItem('gcseVocabAudit_teacherAuth', JSON.stringify({ token: 'design-lint-fake-token', account: 'strarss' }));
+    } catch (e) {}
   });
   await page.goto('file://' + INDEX_HTML);
   await page.waitForTimeout(400);
