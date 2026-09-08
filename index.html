@@ -259,7 +259,14 @@
   .btn-row .btn{flex:1; margin-top:0;}
   .saved-list-tile{display:flex; align-items:center; justify-content:space-between; gap:10px;}
   .del{flex-shrink:0; background:none; border:none; color:var(--red); font-weight:800; font-size:18px; padding:4px 8px; line-height:1;}
-  textarea, input[type=text]{width:100%; border:2px solid var(--border); border-radius:10px; padding:10px; font-size:var(--fs-text); font-family:inherit;}
+  /* input[type=password] added 9 Sep 2026 — it was missing from this shared
+     rule, so the teacher login and change-password fields were rendering
+     with the browser's bare default input styling (thin square-cornered
+     border, no consistent padding/font-size) instead of matching every
+     other text field on the site. Same bug class as the button/input
+     font-family gaps fixed earlier — a form-control type left out of a
+     shared rule. */
+  textarea, input[type=text], input[type=password]{width:100%; border:2px solid var(--border); border-radius:10px; padding:10px; font-size:var(--fs-text); font-family:inherit;}
   /* Buttons don't inherit font-family from body by default in any browser —
      without this they silently fall back to the OS UI font (Segoe UI/Roboto/
      San Francisco) instead of Inter, which reads as "shorter and bolder"

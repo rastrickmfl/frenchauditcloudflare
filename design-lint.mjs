@@ -182,12 +182,16 @@ function runStaticChecks(src) {
     });
   }
 
-  // 5. Same fix for text inputs/textareas.
-  if (!/textarea\s*,\s*input\[type=text\]\s*\{[^}]*font-family\s*:\s*inherit/.test(styleBlock)) {
+  // 5. Same fix for text inputs/textareas/password inputs (password added
+  //    9 Sep 2026 — it was missing from this rule entirely, not just the
+  //    font-family part, which is what made the teacher login/change-
+  //    password fields look visually inconsistent with the rest of the
+  //    site).
+  if (!/textarea\s*,\s*input\[type=text\]\s*,\s*input\[type=password\]\s*\{[^}]*font-family\s*:\s*inherit/.test(styleBlock)) {
     findings.push({
       level: 'ERROR',
       rule: 'input-font-family',
-      detail: `Couldn't find the textarea/input[type=text] font-family:inherit rule (or it's been reformatted — check by eye).`,
+      detail: `Couldn't find the textarea/input[type=text]/input[type=password] font-family:inherit rule (or it's been reformatted — check by eye).`,
     });
   }
 
