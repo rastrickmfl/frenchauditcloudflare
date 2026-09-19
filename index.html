@@ -43,6 +43,18 @@
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
+  /* Stop an accidental pull-down-at-the-top gesture from triggering the
+     browser's own native pull-to-refresh (Chrome on Android, in particular)
+     — this is exactly what was wiping an in-progress Digital Flashcards
+     session on a stray swipe. overscroll-behavior-y:contain tells the
+     browser not to chain a scroll past this element's own top/bottom edge
+     into any parent gesture, refresh included; it doesn't affect normal
+     scrolling within the page at all. Set on both html and body since
+     which one is "the" scrolling element varies by browser. App-wide,
+     not scoped to the flashcards screen, since any accidental refresh
+     losing in-progress state (a half-finished Quick 10, an unsaved
+     Settings change) is the same problem, not just this one screen's. */
+  html,body{overscroll-behavior-y:contain;}
   /* Always reserve the vertical scrollbar's width, even on short pages that don't
      need to scroll. Without this, a page with little content (e.g. the Flashcards
      "Printed or digital?" step) renders a few pixels wider than a taller page that
@@ -311,12 +323,13 @@
   .dc-audio-hint{text-align:center; font-size:var(--fs-subtext); color:var(--muted); margin:0 0 10px;}
   .dc-rag-row{display:flex; gap:10px; margin-top:6px;}
   .dc-rag-row button{
-    /* pill shape (rounded-pill pass, 19 Sep 2026): 999px rounds off the
-       button's actual corner radius to whatever half its own height works
-       out to, so it reads as a true stadium/pill regardless of how tall
-       the icon+label stack ends up on a given device's font metrics. */
-    flex:1; border:none; border-radius:999px; padding:15px 0; font-family:inherit;
-    font-weight:700; font-size:var(--fs-subtext); color:#fff; display:flex; flex-direction:column; align-items:center; gap:6px;
+    /* rounded-rect pill (toned down 19 Sep 2026, mockup pass): a full
+       999px stadium radius didn't suit the vertically-stacked icon+label
+       content, so this uses a more modest fixed radius instead — still
+       clearly rounded/pill-ish, not a sharp rectangle, but not a full
+       stadium either. Height also trimmed via less vertical padding. */
+    flex:1; border:none; border-radius:18px; padding:11px 0; font-family:inherit;
+    font-weight:700; font-size:var(--fs-subtext); color:#fff; display:flex; flex-direction:column; align-items:center; gap:5px;
     opacity:.6; transition:opacity .2s ease, box-shadow .2s ease;
   }
   .dc-rag-row button svg{display:block;}
