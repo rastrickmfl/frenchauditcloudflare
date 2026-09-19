@@ -311,7 +311,11 @@
   .dc-audio-hint{text-align:center; font-size:var(--fs-subtext); color:var(--muted); margin:0 0 10px;}
   .dc-rag-row{display:flex; gap:10px; margin-top:6px;}
   .dc-rag-row button{
-    flex:1; border:none; border-radius:16px; padding:15px 0; font-family:inherit;
+    /* pill shape (rounded-pill pass, 19 Sep 2026): 999px rounds off the
+       button's actual corner radius to whatever half its own height works
+       out to, so it reads as a true stadium/pill regardless of how tall
+       the icon+label stack ends up on a given device's font metrics. */
+    flex:1; border:none; border-radius:999px; padding:15px 0; font-family:inherit;
     font-weight:700; font-size:var(--fs-subtext); color:#fff; display:flex; flex-direction:column; align-items:center; gap:6px;
     opacity:.6; transition:opacity .2s ease, box-shadow .2s ease;
   }
@@ -7653,14 +7657,32 @@ function scheduleDigitalAdvance(delayMs){
 // actually be readable. d=1 (the upcoming card) stays hidden instead:
 // blurred rather than just faded, so nothing about it can be read ahead of
 // time (19 Sep 2026, simplified session round).
+// Fixed pixel y-offsets, same principle the original design already used
+// (see the design-system-rules.md note on this: "absolute offsets from
+// the current card's centre, not a percentage of the viewport's own
+// height") — deliberately NOT scaled to the carousel's own current
+// height. dc-cc-viewport's overflow:hidden + mask-image fade are what do
+// the actual work of showing more or less of the outer slots depending on
+// how tall the viewport is on a given screen (see the vpH comment in
+// renderDigitalSession): on the original 280px-tall viewport, d=±2 (y:
+// ±180/±210 area) mostly sit outside the viewport's own bounds already
+// and get clipped away — that was true before this round too, just
+// invisible on top of being clipped (opacity:0). Un-hiding them
+// (opacity/blur below) doesn't change where they sit, only that a taller
+// viewport now lets a real peek of them show through rather than nothing.
+// d=±2's offset was nudged out slightly (180→210) from the original so it
+// shingles behind d=∓1 rather than sitting almost on top of it once both
+// are actually visible. Per-slot opacity/blur is the specific "card 1/5
+// blurred, card 2 only slightly blurred, card 4 fully blurred" treatment
+// Jacob asked for (19 Sep 2026, "extended background cards" round).
 function dcSlotStyle(d){
   d = Math.max(-2, Math.min(2, d));
   var SLOTS = {
-    "-2":{y:-180, scale:.75, opacity:0,   blur:0},
-    "-1":{y:-100, scale:.88, opacity:.85, blur:0},
-    "0": {y:0,    scale:1,   opacity:1,   blur:0},
-    "1": {y:100,  scale:.86, opacity:.45, blur:6},
-    "2": {y:180,  scale:.75, opacity:0,   blur:6}
+    "-2":{y:-210, scale:.75, opacity:.3,  blur:4}, // card 1 — "blurred"
+    "-1":{y:-100, scale:.88, opacity:.85, blur:2}, // card 2 — completed, "only slightly blurred"
+    "0": {y:0,    scale:1,   opacity:1,   blur:0}, // card 3 — active
+    "1": {y:100,  scale:.86, opacity:.45, blur:6}, // card 4 — "fully blurred" (unchanged)
+    "2": {y:210,  scale:.75, opacity:.3,  blur:4}  // card 5 — "blurred"
   };
   var s = SLOTS[String(d)];
   return {
@@ -7777,15 +7799,98 @@ function renderDigitalSession(){
     }
   }
 
+  // Rating row + Previous/Skip are built *before* the carousel now (moved
+  // up from after it — 19 Sep 2026, "extended background cards" round) so
+  // dc-bottom-zone has its real, final height by the time we measure
+  // dc-center-zone just below: the carousel's own height depends on how
+  // much room dc-top-zone and dc-bottom-zone leave it, so those two have
+  // to exist first. Built (and given its full, real height) from the
+  // first frame a ratable card is on screen, not only once revealed==true
+  // — see the .dc-rag-row.dc-rag-reserved comment in the stylesheet for
+  // why: this is what stops the card in dc-center-zone from nudging
+  // position the moment it's flipped and the row becomes visible.
+  if(fcDigital.ratable && item.id){
+    var r = getRating(item.id);
+    var ragRow = el(
+      '<div class="dc-rag-row'+(fcDigital.revealed ? '' : ' dc-rag-reserved')+'">'+
+        '<button class="r'+(r==="R"?" sel":"")+'" data-r="R"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m9.75 9.75 4.5 4.5m0-4.5-4.5 4.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>Still learning</button>'+
+        '<button class="a'+(r==="A"?" sel":"")+'" data-r="A"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z"/></svg>Getting there</button>'+
+        '<button class="g'+(r==="G"?" sel":"")+'" data-r="G"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>Confident</button>'+
+      '</div>'
+    );
+    if(fcDigital.revealed){
+      ragRow.querySelectorAll("button").forEach(function(btn){
+        btn.addEventListener("click", function(e){
+          e.stopPropagation();
+          if(fcDigital.advancing) return;
+          var val = btn.dataset.r;
+          if(item.id){
+            // Unlike the plain word-list rating dots (wordCardHtml), tapping
+            // the colour a card is already showing here is a *reconfirm*, not
+            // an undo -- the reveal screen pre-highlights the existing rating,
+            // so re-tapping it is the natural way to say "yep, still red"
+            // mid-session. Clearing a rating entirely is still available from
+            // the ordinary word-list view; deliberately not replicating that
+            // toggle-to-delete behaviour here, where it would silently wipe a
+            // rating the pupil meant to confirm.
+            state.ratings[item.id] = val;
+            saveState();
+            refreshProgressIndicators();
+          }
+          fcDigital.sessionRatings[item.id||("i"+idx)] = val;
+          render();
+          scheduleDigitalAdvance(1000);
+        });
+      });
+    }
+    bottomZone.appendChild(ragRow);
+  }
+
+  var navRow = el('<div class="dc-nav-row"></div>');
+  var prevBtn = el('<button'+(idx===0 ? ' disabled' : '')+'>'+ARROW_BACK_HTML+' Previous</button>');
+  prevBtn.addEventListener("click", function(){
+    cancelScheduledDigitalAdvance();
+    if(fcDigital.idx>0){
+      var fromIdx = fcDigital.idx;
+      fcDigital.idx--;
+      fcDigital.revealed = false;
+      fcDigital.curFr = false;
+      fcDigital.animateFromIdx = fromIdx;
+      render();
+    }
+  });
+  navRow.appendChild(prevBtn);
+  var advanceBtn = el('<button class="skip">'+(fcDigital.ratable ? "Skip" : "Next")+' '+ARROW_FWD_HTML+'</button>');
+  advanceBtn.addEventListener("click", function(){
+    cancelScheduledDigitalAdvance();
+    advanceDigitalCard();
+  });
+  navRow.appendChild(advanceBtn);
+  bottomZone.appendChild(navRow);
+
   // ---- carousel viewport ----
   // Only ever builds nodes for the (at most 5) cards actually visible at
   // slots d = -2..2 around idx -- decks run to 200+ words, and "tap the
   // faded card above to go back" only ever needs the one at d=-1, so there's
   // no reason to hold the rest of the deck in the DOM.
+  //
+  // Viewport height is measured, not guessed (19 Sep 2026, "extended
+  // background cards" round): dc-center-zone is flex:1, so by this point
+  // — top and bottom zones already built and attached above — its
+  // clientHeight is the real space left on THIS device/screen. 280 is the
+  // original small-phone default (floor, never smaller, so nothing
+  // regresses on a short screen); 460 is a deliberate cap so the carousel
+  // doesn't sprawl to an ungainly height on a very tall/tablet screen; 24
+  // is breathing room so the viewport doesn't touch dc-top-zone/dc-bottom-
+  // zone edges. The active card itself (.dc-cc-card) stays a fixed 168px
+  // regardless — only the surrounding band grows, which is what makes room
+  // to actually show the outer two carousel slots (see dcSlotStyle) rather
+  // than just relabelling how much of them the mask-fade hides.
+  var vpH = Math.max(280, Math.min(460, Math.floor(centerZone.clientHeight) - 24));
   var animateFrom = fcDigital.animateFromIdx;
   fcDigital.animateFromIdx = null; // consumed for this render whether or not we end up animating
   var lo = Math.max(0, idx-2), hi = Math.min(items.length-1, idx+2);
-  var viewport = el('<div class="dc-cc-viewport" id="dcViewport"></div>');
+  var viewport = el('<div class="dc-cc-viewport" id="dcViewport" style="height:'+vpH+'px;"></div>');
   var built = [];
 
   for(var i=lo; i<=hi; i++){
@@ -7808,10 +7913,25 @@ function renderDigitalSession(){
       // spoil the next word" treatment that applies regardless of audio mode.
       var masked = isCurrent && fcDigital.audioMode && audioEligible && !fcDigital.curFr && !fcDigital.revealed;
       var isPreview = !isCurrent && !isDone;
+      // Extended 19 Sep 2026 ("extended background cards" round) to also
+      // cover a card rated in an *earlier* session, not just this one —
+      // state.ratings[it.id] (truthy only when actually rated; unlike
+      // getRating(), which defaults every untouched word to "R" and so
+      // can't tell "genuinely red" from "never rated" — see the AQA-units
+      // badge round above for where that distinction already bit once)
+      // is checked directly rather than going through getRating(). Shown
+      // on isDone cards (as before) AND on the current card — including
+      // *before* it's revealed, deliberately: the front word is already
+      // legible pre-reveal (only the back/answer is hidden), so a prior
+      // rating isn't a spoiler, and seeing "you had this as red" right
+      // before answering is the useful moment — it's what prompts bumping
+      // a rating up on reveal if they actually get it right this time.
+      // Still-blurred upcoming cards (d>0) deliberately don't get this, so
+      // they stay a genuine surprise until reached.
       var badgeColor = null;
-      if(isDone && it.id && fcDigital.sessionRatings[it.id]){
-        var rv = fcDigital.sessionRatings[it.id];
-        badgeColor = rv==="R" ? "var(--red)" : rv==="A" ? "var(--amber)" : "var(--green)";
+      if((isDone || isCurrent) && it.id){
+        var rv = fcDigital.sessionRatings[it.id] || state.ratings[it.id];
+        if(rv){ badgeColor = rv==="R" ? "var(--red)" : rv==="A" ? "var(--amber)" : "var(--green)"; }
       }
 
       var inner = '';
@@ -7852,7 +7972,13 @@ function renderDigitalSession(){
           inner+
         '</div>';
       var cardEl = el(cardHtml);
-      if(Math.abs(d) >= 2){ cardEl.style.pointerEvents = "none"; } // faded out of view — not a usable tap target
+      // d=-2 used to be pointer-events:none here ("faded out of view, not
+      // a usable tap target") — that's no longer true now that it's
+      // actually visible (see dcSlotStyle above), and it already gets a
+      // real goToDigitalCard handler below via the isDone branch (isDone
+      // spans both d=-1 and d=-2), so it's left clickable like d=-1
+      // always was. d=2 never gets a handler either way (upcoming cards
+      // are preview-only, see the comment below), so nothing to disable.
 
       if(isDone){
         cardEl.addEventListener("click", function(){ goToDigitalCard(i); });
@@ -7906,70 +8032,6 @@ function renderDigitalSession(){
       }catch(e){ /* Web Animations API unavailable — cards just snap, no harm done */ }
     });
   }
-
-  // Built (and given its full, real height) from the first frame a
-  // ratable card is on screen, not only once revealed==true — see the
-  // .dc-rag-row.dc-rag-reserved comment in the stylesheet for why: this
-  // is what stops the card in dc-center-zone from nudging position the
-  // moment it's flipped and the row becomes visible.
-  if(fcDigital.ratable && item.id){
-    var r = getRating(item.id);
-    var ragRow = el(
-      '<div class="dc-rag-row'+(fcDigital.revealed ? '' : ' dc-rag-reserved')+'">'+
-        '<button class="r'+(r==="R"?" sel":"")+'" data-r="R"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>Still learning</button>'+
-        '<button class="a'+(r==="A"?" sel":"")+'" data-r="A"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 8v5M12 16.5v.1"/></svg>Getting there</button>'+
-        '<button class="g'+(r==="G"?" sel":"")+'" data-r="G"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg>Confident</button>'+
-      '</div>'
-    );
-    if(fcDigital.revealed){
-      ragRow.querySelectorAll("button").forEach(function(btn){
-        btn.addEventListener("click", function(e){
-          e.stopPropagation();
-          if(fcDigital.advancing) return;
-          var val = btn.dataset.r;
-          if(item.id){
-            // Unlike the plain word-list rating dots (wordCardHtml), tapping
-            // the colour a card is already showing here is a *reconfirm*, not
-            // an undo -- the reveal screen pre-highlights the existing rating,
-            // so re-tapping it is the natural way to say "yep, still red"
-            // mid-session. Clearing a rating entirely is still available from
-            // the ordinary word-list view; deliberately not replicating that
-            // toggle-to-delete behaviour here, where it would silently wipe a
-            // rating the pupil meant to confirm.
-            state.ratings[item.id] = val;
-            saveState();
-            refreshProgressIndicators();
-          }
-          fcDigital.sessionRatings[item.id||("i"+idx)] = val;
-          render();
-          scheduleDigitalAdvance(1000);
-        });
-      });
-    }
-    bottomZone.appendChild(ragRow);
-  }
-
-  var navRow = el('<div class="dc-nav-row"></div>');
-  var prevBtn = el('<button'+(idx===0 ? ' disabled' : '')+'>'+ARROW_BACK_HTML+' Previous</button>');
-  prevBtn.addEventListener("click", function(){
-    cancelScheduledDigitalAdvance();
-    if(fcDigital.idx>0){
-      var fromIdx = fcDigital.idx;
-      fcDigital.idx--;
-      fcDigital.revealed = false;
-      fcDigital.curFr = false;
-      fcDigital.animateFromIdx = fromIdx;
-      render();
-    }
-  });
-  navRow.appendChild(prevBtn);
-  var advanceBtn = el('<button class="skip">'+(fcDigital.ratable ? "Skip" : "Next")+' '+ARROW_FWD_HTML+'</button>');
-  advanceBtn.addEventListener("click", function(){
-    cancelScheduledDigitalAdvance();
-    advanceDigitalCard();
-  });
-  navRow.appendChild(advanceBtn);
-  bottomZone.appendChild(navRow);
 
   // Streak sessions can't be manually ended early — the whole point is that
   // all 20 cards have to be gone through to bank the day. Once they have
