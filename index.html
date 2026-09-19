@@ -84,6 +84,15 @@
   }
   .info-btn:active{background:rgba(255,255,255,.3);}
   main{padding:14px; max-width:640px; margin:0 auto;}
+  /* Digital Flashcards session screen: hide the blue header and bottom tab
+     bar entirely (19 Sep 2026, simplified session round) — toggled on
+     `<body>` from render() whenever fcDigital.active && !fcDigital.ended, and
+     off again on the finish screen / everywhere else. body's padding-bottom
+     exists only to clear the fixed tab bar, so it's dropped too while the
+     tab bar is hidden — otherwise the flashcard screen would carry a dead
+     76px gap at the bottom. */
+  body.fc-session-active header, body.fc-session-active nav.tabbar{display:none;}
+  body.fc-session-active{padding-bottom:0;}
   /* Opt-in vertical centering for a screen whose content is a single,
      self-contained choice (a wizard step with 2-3 options, an empty state) —
      applied only by centerAppContent(), never globally, because a page whose
@@ -248,15 +257,44 @@
   .dc-progress-fill{height:100%; background:var(--purple); border-radius:4px; transition:width .25s ease;}
   .dc-pos-label{font-size:var(--fs-subtext); font-weight:700; color:var(--muted); white-space:nowrap; flex-shrink:0;}
   .dc-progress-row{display:flex; align-items:center; justify-content:space-between; margin:8px 0 4px; font-size:var(--fs-subtext); font-weight:700; color:var(--purple);}
-  .dc-cc-viewport{position:relative; height:380px; margin:6px 0 22px; overflow:hidden;}
+  /* Viewport shrunk 380->280 / card 216->168 (19 Sep 2026, simplified session
+     round) — same carousel, just more compact — and the old hard
+     overflow:hidden clip replaced with a mask-image fade so the top/bottom/
+     left/right edges blend into the page background instead of cutting off
+     mid-card. mask-composite:intersect requires both gradients to be opaque
+     for a point to show, i.e. it fades on every edge at once. */
+  .dc-cc-viewport{
+    position:relative; height:280px; margin:6px 0 22px; overflow:hidden;
+    -webkit-mask-image:
+      linear-gradient(to bottom, transparent 0, #000 44px, #000 calc(100% - 44px), transparent 100%),
+      linear-gradient(to right, transparent 0, #000 20px, #000 calc(100% - 20px), transparent 100%);
+    mask-image:
+      linear-gradient(to bottom, transparent 0, #000 44px, #000 calc(100% - 44px), transparent 100%),
+      linear-gradient(to right, transparent 0, #000 20px, #000 calc(100% - 20px), transparent 100%);
+    -webkit-mask-composite: source-in;
+    mask-composite: intersect;
+  }
   .dc-cc-card{
-    position:absolute; left:10px; right:10px; top:50%; margin-top:-108px; height:216px;
+    position:absolute; left:10px; right:10px; top:50%; margin-top:-84px; height:168px;
     box-sizing:border-box; background:var(--card); border-radius:22px;
-    box-shadow:0 14px 30px rgba(20,40,70,.14); padding:26px 22px; text-align:center;
+    box-shadow:0 14px 30px rgba(20,40,70,.14); padding:20px 22px; text-align:center;
     display:flex; flex-direction:column; align-items:center; justify-content:center;
     cursor:pointer; -webkit-tap-highlight-color:transparent; transform-origin:center center;
   }
   .dc-cc-card.dc-cc-preview{filter:blur(6px);}
+  /* Compact Audio mode toggle — a modifier, not a change to .higher-toggle-row
+     itself (that class is shared with the unrelated Foundation/Higher switch
+     elsewhere in the app, which is deliberately full-width). */
+  .dc-audio-toggle{
+    display:flex; align-items:center; gap:8px;
+    background:var(--tint); border:1px solid var(--border); border-radius:10px;
+    padding:5px 10px; margin-bottom:14px; cursor:pointer;
+    align-self:flex-start; width:fit-content;
+  }
+  .dc-audio-toggle b{font-size:var(--fs-subtext); color:var(--purple); font-weight:700;}
+  .dc-audio-toggle .switch{width:32px; height:18px;}
+  .dc-audio-toggle .switch .knob{width:14px; height:14px; top:2px; left:2px;}
+  .dc-audio-toggle .switch.on .knob{left:16px;}
   .dc-cc-badge{position:absolute; top:14px; right:14px; width:16px; height:16px; border-radius:50%; box-shadow:0 0 0 3px var(--card);}
   .dc-front{font-size:24px; color:var(--ink); line-height:1.25; overflow-wrap:break-word;} /* the flashcard word itself — deliberately large, see :root note */
   .dc-front-row{display:flex; align-items:center; justify-content:center; gap:14px; flex-wrap:wrap; row-gap:8px;}
@@ -3160,12 +3198,14 @@ function render(){
     navTabbar.style.display = "none";
     backBtn.style.display = "none";
     teacherBadgeEl.style.display = "none";
+    document.body.classList.remove("fc-session-active");
     app.innerHTML = "";
     renderLogin();
     return;
   }
   navTabbar.style.display = "";
   teacherBadgeEl.style.display = isTeacher() ? "" : "none";
+  document.body.classList.toggle("fc-session-active", fcDigital.active && !fcDigital.ended);
   document.querySelectorAll("nav.tabbar button").forEach(function(b){
     b.classList.toggle("active", b.dataset.route===route.name);
   });
@@ -7354,7 +7394,26 @@ var fcDigital = {
   audioMode:false, curFr:false, playingIdx:null,
   animateFromIdx:null, lastAutoPlayedIdx:null
 };
-var FC_MASK = "••••••";
+var FC_MASK = "••••••"; // unused now buildWaveformHtml replaces it as the Audio-mode mask; kept in case anything else references it
+// Deterministic per word (same word always draws the same shape, so it
+// doesn't reshuffle on every re-render) — bar count scales with the word's
+// letter count, heights follow a bell-curve envelope seeded off the word's
+// own character codes, so short and long words visibly look different
+// instead of a fixed-width placeholder (19 Sep 2026, simplified session round).
+function buildWaveformHtml(word){
+  var letters = word.replace(/[^A-Za-zÀ-ÿ]/g, "");
+  var n = Math.max(5, Math.min(16, letters.length || word.length));
+  var bars = "";
+  for(var i=0; i<n; i++){
+    var t = n>1 ? i/(n-1) : .5;
+    var envelope = Math.sin(t*Math.PI);
+    var seed = word.charCodeAt(i % word.length) || 50;
+    var jitter = (seed % 10)/10;
+    var h = Math.round(6 + envelope*16 + jitter*8);
+    bars += '<div style="width:4px;flex-shrink:0;border-radius:3px;background:var(--purple);height:'+h+'px;"></div>';
+  }
+  return '<div style="display:flex;align-items:center;justify-content:center;gap:3px;height:30px;">'+bars+'</div>';
+}
 
 function shuffledCopy(arr){
   var copy = arr.slice();
@@ -7540,17 +7599,27 @@ function scheduleDigitalAdvance(delayMs){
 // to ±2 so a card jumping in from further away (e.g. mid-slide, before a
 // render's Element.animate() call consumes fcDigital.animateFromIdx) still
 // gets a sane on/off-screen position instead of an extreme transform value.
+// d=-1 (the just-answered previous card) is now fully legible, not faded —
+// it shows both languages (see the isDone branch below) so it needs to
+// actually be readable. d=1 (the upcoming card) stays hidden instead:
+// blurred rather than just faded, so nothing about it can be read ahead of
+// time (19 Sep 2026, simplified session round).
 function dcSlotStyle(d){
   d = Math.max(-2, Math.min(2, d));
   var SLOTS = {
-    "-2":{y:-210, scale:.72, opacity:0},
-    "-1":{y:-132, scale:.86, opacity:.55},
-    "0": {y:0,    scale:1,   opacity:1},
-    "1": {y:132,  scale:.86, opacity:.55},
-    "2": {y:210,  scale:.72, opacity:0}
+    "-2":{y:-180, scale:.75, opacity:0,   blur:0},
+    "-1":{y:-100, scale:.88, opacity:.85, blur:0},
+    "0": {y:0,    scale:1,   opacity:1,   blur:0},
+    "1": {y:100,  scale:.86, opacity:.45, blur:6},
+    "2": {y:180,  scale:.75, opacity:0,   blur:6}
   };
   var s = SLOTS[String(d)];
-  return {transform:'translateY('+s.y+'px) scale('+s.scale+')', opacity:s.opacity, zIndex:10-Math.abs(d)};
+  return {
+    transform:'translateY('+s.y+'px) scale('+s.scale+')',
+    opacity:s.opacity,
+    blur:s.blur,
+    zIndex:10-Math.abs(d)
+  };
 }
 
 function renderDigitalSession(){
@@ -7561,15 +7630,11 @@ function renderDigitalSession(){
   // lying around (or its untouched defaults, e.g. "Verbs · · null
   // randomised flashcards"). Give streak/bonus sessions their own summary
   // instead of falling through to that.
-  var summaryLine = fcDigital.streakMode
-    ? esc(fcDigital.headerTitle || "Daily Streak") + ' &middot; ' + fcDigital.deck.length + ' words'
-    : fcSummaryLines().map(esc).join(' &middot; ');
-  app.appendChild(el(
-    '<div class="card" style="font-size:var(--fs-subtext); color:var(--muted); line-height:1.5;">'+
-      '<b style="color:var(--purple); font-size:var(--fs-subtext);">Digital Flashcards</b><br>'+
-      summaryLine+
-    '</div>'
-  ));
+  // The vocab-set summary card (set name/theme/etc.) was dropped from the
+  // in-session screen (19 Sep 2026, simplified session round) — it's still
+  // shown one step earlier, in the wizard summary before a session starts,
+  // so nothing is lost, it just no longer eats space at the top of every
+  // card view.
 
   if(fcDigital.ended){ renderDigitalFinish(); return; }
   if(fcDigital.items.length===0){ renderDigitalFinish(); return; }
@@ -7638,7 +7703,7 @@ function renderDigitalSession(){
 
   if(audioEligible){
     var toggleRow = el(
-      '<div class="higher-toggle-row" id="dcAudioToggleRow" style="cursor:pointer;">'+
+      '<div class="dc-audio-toggle" id="dcAudioToggleRow">'+
         '<b>&#128266; Audio mode</b>'+
         '<div class="switch'+(fcDigital.audioMode?' on':'')+'"><div class="knob"></div></div>'+
       '</div>'
@@ -7669,11 +7734,15 @@ function renderDigitalSession(){
       var it = items[i];
       var thisFront = frontIsFr ? it.fr : it.en;
       var thisBack = frontIsFr ? it.en : it.fr;
-      // Done cards were already answered this session -- show them plainly.
+      // Done cards were already answered this session -- show them plainly,
+      // both languages (front + back), fully legible -- see the isDone
+      // branch below (19 Sep 2026: previously done cards were front-only
+      // like preview cards; now only the *upcoming* card stays hidden).
       // The *current* card masks the French word in audio mode until it's
-      // been played/revealed (bullet-mask, since it needs to be replaced by
-      // something un-guessable). Upcoming cards are never literally masked —
-      // they're just visually blurred (see .dc-cc-preview), a softer "don't
+      // been played/revealed (a waveform shape, since it needs to be
+      // replaced by something un-guessable -- see buildWaveformHtml).
+      // Upcoming cards are never literally masked — they're just visually
+      // blurred (see .dc-cc-preview / dcSlotStyle's blur), a softer "don't
       // spoil the next word" treatment that applies regardless of audio mode.
       var masked = isCurrent && fcDigital.audioMode && audioEligible && !fcDigital.curFr && !fcDigital.revealed;
       var isPreview = !isCurrent && !isDone;
@@ -7686,7 +7755,7 @@ function renderDigitalSession(){
       var inner = '';
       if(isCurrent){
         inner += '<div class="dc-front-row">';
-        inner += '<div class="dc-front '+(frontIsFr ? 'dc-fr' : 'dc-en')+'">'+(masked ? FC_MASK : esc(thisFront))+'</div>';
+        inner += '<div class="dc-front '+(frontIsFr ? 'dc-fr' : 'dc-en')+'">'+(masked ? buildWaveformHtml(thisFront) : esc(thisFront))+'</div>';
         if(audioEligible){
           inner += '<button type="button" class="dc-cc-icon-btn'+(fcDigital.playingIdx===idx ? ' on' : '')+'" data-audio-btn title="Listen">'+DC_SPEAKER_ICON_HTML+'</button>';
           if(fcDigital.audioMode && !fcDigital.revealed){
@@ -7702,13 +7771,21 @@ function renderDigitalSession(){
             inner += '<div class="dc-tap-hint">Tap to continue &rarr;</div>';
           }
         }
+      } else if(isDone){
+        // Already-answered card: both languages, legible (see dcSlotStyle,
+        // d=-1 is no longer faded down to preview level).
+        inner += '<div class="dc-front" style="font-size:16px;">'+esc(thisFront)+'</div>'+
+          '<div class="dc-divider" style="width:50%; margin:8px auto;"></div>'+
+          '<div class="dc-back" style="font-size:13px;">'+esc(thisBack)+'</div>';
       } else {
-        inner += '<div class="dc-front" style="font-size:20px;">'+esc(thisFront)+'</div>';
+        // Upcoming card: front only, and blurred (see style.blur below) so
+        // nothing about the word is legible ahead of time.
+        inner += '<div class="dc-front" style="font-size:16px;">'+esc(thisFront)+'</div>';
       }
 
       var style = dcSlotStyle(d);
       var cardHtml =
-        '<div class="dc-cc-card'+(isPreview ? ' dc-cc-preview' : '')+'" style="transform:'+style.transform+'; opacity:'+style.opacity+'; z-index:'+style.zIndex+';">'+
+        '<div class="dc-cc-card'+(isPreview ? ' dc-cc-preview' : '')+'" style="transform:'+style.transform+'; opacity:'+style.opacity+'; filter:blur('+style.blur+'px); z-index:'+style.zIndex+';">'+
           (badgeColor ? '<div class="dc-cc-badge" style="background:'+badgeColor+';"></div>' : '')+
           inner+
         '</div>';
@@ -7870,6 +7947,18 @@ function renderDigitalFinish(){
     html += '<h2>Session complete!</h2>'+
       '<div style="color:var(--muted); font-size:var(--fs-subtext);">You went through '+fcDigital.totalSeen+' card'+(fcDigital.totalSeen===1?'':'s')+
         ' across '+roundsLabel+'.</div>';
+    // Closing (X) mid-session already saved every rating tapped so far —
+    // state.ratings[item.id] is written the instant a RAG button is tapped
+    // (see the ragRow click handler above), independent of how the session
+    // ends, so nothing is lost by closing early. This screen is the only
+    // place a non-streak session ever lands with ended===true (the X button
+    // is the only way to get here outside a streak session), so it's the
+    // right place to say so explicitly rather than leaving it implicit.
+    if(fcDigital.ratable){
+      var ratedTotal = fcDigital.deck.filter(function(w){ return w.id && state.ratings[w.id]; }).length;
+      html += '<div class="banner" style="background:#EAF7F0; border-color:#B8ECC8; color:#1F6B45; font-weight:700; text-align:center;">'+
+        '&#10003; Your progress has been saved &mdash; '+ratedTotal+' of '+fcDigital.deck.length+' words rated</div>';
+    }
   }
   if(fcDigital.ratable){
     html +=
