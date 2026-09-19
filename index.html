@@ -242,13 +242,15 @@
      freshly-created node has no "previous style" for a CSS transition to
      animate from; the JS-driven animation plays the motion explicitly
      instead, keyed off the previous vs new card index. */
-  .dc-header-row{display:flex; align-items:center; gap:14px; margin-bottom:2px;}
+  .dc-header-row{display:flex; align-items:center; gap:14px; margin-bottom:2px; flex-shrink:0;}
   .dc-close-btn{width:34px; height:34px; border-radius:10px; border:none; background:var(--card); box-shadow:0 1px 3px rgba(0,0,0,.08); display:flex; align-items:center; justify-content:center; flex-shrink:0; color:#5C6773;}
   .dc-progress-track{flex:1; height:6px; background:var(--border); border-radius:4px; overflow:hidden;}
   .dc-progress-fill{height:100%; background:var(--purple); border-radius:4px; transition:width .25s ease;}
   .dc-pos-label{font-size:var(--fs-subtext); font-weight:700; color:var(--muted); white-space:nowrap; flex-shrink:0;}
-  .dc-progress-row{display:flex; align-items:center; justify-content:space-between; margin:8px 0 4px; font-size:var(--fs-subtext); font-weight:700; color:var(--purple);}
-  .dc-cc-viewport{position:relative; height:380px; margin:6px 0 22px; overflow:hidden;}
+  .dc-progress-row{display:flex; align-items:center; justify-content:space-between; margin:6px 0 2px; font-size:var(--fs-subtext); font-weight:700; color:var(--purple);}
+  .dc-summary-line{font-size:var(--fs-subtext); color:var(--muted); text-align:center; margin:0 0 8px; line-height:1.3;}
+  .flex-fill-wrap{display:flex; flex-direction:column;}
+  .dc-cc-viewport{position:relative; flex:1; min-height:230px; margin:6px 0 10px; overflow:hidden;}
   .dc-cc-card{
     position:absolute; left:10px; right:10px; top:50%; margin-top:-108px; height:216px;
     box-sizing:border-box; background:var(--card); border-radius:22px;
@@ -271,16 +273,16 @@
   .dc-fr{font-weight:700; font-style:normal;}
   .dc-en{font-weight:600; font-style:normal;}
   .dc-audio-hint{text-align:center; font-size:var(--fs-subtext); color:var(--muted); margin:0 0 10px;}
-  .dc-rag-row{display:flex; gap:10px; margin-top:6px;}
+  .dc-rag-row{display:flex; gap:10px; margin-top:6px; flex-shrink:0;}
   .dc-rag-row button{
-    flex:1; border:none; border-radius:16px; padding:15px 0; font-family:inherit;
+    flex:1; border:none; border-radius:16px; padding:13px 0; font-family:inherit;
     font-weight:700; font-size:var(--fs-subtext); color:#fff; display:flex; flex-direction:column; align-items:center; gap:6px;
     opacity:.6; transition:opacity .2s ease, box-shadow .2s ease;
   }
   .dc-rag-row button svg{display:block;}
   .dc-rag-row button.r{background:var(--red);} .dc-rag-row button.a{background:var(--amber);} .dc-rag-row button.g{background:var(--green);}
   .dc-rag-row button.sel{opacity:1; box-shadow:0 0 0 3px rgba(0,0,0,.12) inset;}
-  .dc-nav-row{display:flex; justify-content:space-between; align-items:center; margin-top:18px;}
+  .dc-nav-row{display:flex; justify-content:space-between; align-items:center; margin-top:8px; flex-shrink:0;}
   .dc-nav-row button{background:none; border:none; color:var(--purple); font-weight:700; font-size:var(--fs-text); padding:8px 4px;}
   .dc-nav-row button:disabled{color:var(--border); pointer-events:none;}
   .dc-nav-row .skip{color:var(--muted); font-weight:600;}
@@ -325,7 +327,7 @@
   .conj-fr{display:flex; align-items:center; justify-content:space-between; gap:6px; font-weight:600;}
   .conj-en{color:var(--muted); font-size:var(--fs-subtext); font-style:italic; line-height:1.3;}
   @media (max-width:380px){ .conj-grid{grid-template-columns:1fr;} }
-  .higher-toggle-row{display:flex; align-items:center; justify-content:space-between; background:var(--tint); border:1px solid var(--border); border-radius:12px; padding:10px 12px; margin:14px 0 6px;}
+  .higher-toggle-row{display:flex; align-items:center; justify-content:space-between; background:var(--tint); border:1px solid var(--border); border-radius:12px; padding:8px 12px; margin:8px 0 4px;}
   .higher-toggle-row b{color:var(--purple); font-size:var(--fs-text);}
   .switch{position:relative; width:52px; height:30px; background:#ccc; border-radius:20px; flex-shrink:0;}
   .switch.on{background:var(--green);}
@@ -451,13 +453,20 @@
      glyphs. Each is stroke="currentColor" fill="none", the same technique
      already used for the header/back-link chevron, so nav.tabbar
      button.active{color:var(--purple)} recolours the icon automatically —
-     no per-icon colour rule needed. -->
+     no per-icon colour rule needed. Vocab's globe, Cards' card-with-"A",
+     and Ind. Study's backpack were redrawn the same day against a
+     six-icon reference Jacob supplied, as hand-drawn paths in this same
+     stroke/no-fill convention rather than the reference's own raster
+     artwork -- keeps them recolouring with the active tab like every
+     other icon here, which an embedded image couldn't do. Verbs' runner,
+     Quick 10's clock, and Settings' gear already matched the reference
+     conceptually and were left as they were. -->
 <nav class="tabbar">
-  <button data-route="home"><span class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3c2.5 2.5 4 5.5 4 9s-1.5 6.5-4 9c-2.5-2.5-4-5.5-4-9s1.5-6.5 4-9z"/></svg></span>Vocab</button>
+  <button data-route="home"><span class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M4.3 7.7h15.4"/><path d="M4.3 16.3h15.4"/><path d="M12 3c2.5 2.5 4 5.5 4 9s-1.5 6.5-4 9c-2.5-2.5-4-5.5-4-9s1.5-6.5 4-9z"/></svg></span>Vocab</button>
   <button data-route="verbs"><span class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="14.5" cy="4.2" r="1.7"/><path d="M13.5 6.2L9.5 11.5"/><path d="M13 7.2L16.5 6"/><path d="M11.5 9L8 9.5"/><path d="M9.5 11.5L6.5 13L8 18"/><path d="M9.5 11.5L13 14L16 12"/></svg></span>Verbs</button>
   <button data-route="quick10"><span class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></span>Quick 10</button>
-  <button data-route="flashcards"><span class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="6" width="13" height="9" rx="2"/><rect x="7" y="9" width="13" height="9" rx="2" fill="#fff"/></svg></span>Cards</button>
-  <button data-route="independentStudy"><span class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 8.5V6.8a4 4 0 018 0V8.5"/><rect x="4.5" y="8.5" width="15" height="12" rx="3.2"/><path d="M4.5 12.5h15"/></svg></span>Ind. Study</button>
+  <button data-route="flashcards"><span class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="3" width="12" height="18" rx="2"/><path d="M9.3 15.5L12 8.5l2.7 7"/><path d="M10 13.2h4"/><path d="M8.5 18.3h7"/></svg></span>Cards</button>
+  <button data-route="independentStudy"><span class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 8V6a4 4 0 018 0v2"/><path d="M18 8a2 2 0 012 2v9a2 2 0 01-2 2H6a2 2 0 01-2-2v-9a2 2 0 012-2h12z"/><path d="M9 12v-1a1 1 0 011-1h4a1 1 0 011 1v1"/><path d="M9 21v-4a1 1 0 011-1h4a1 1 0 011 1v4"/><path d="M9 8h6"/></svg></span>Ind. Study</button>
   <button data-route="sync"><span class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15a3 3 0 100-6 3 3 0 000 6z"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.6 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.6a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg></span>Settings</button>
 </nav>
 <div id="printArea"></div>
@@ -3054,6 +3063,33 @@ function centerAppContent(){
   var avail = window.innerHeight - headerH - TABBAR_RESERVED;
   var wrap = document.createElement("div");
   wrap.className = "center-wrap";
+  wrap.style.minHeight = Math.max(avail, 0) + "px";
+  while(app.firstChild){ wrap.appendChild(app.firstChild); }
+  app.appendChild(wrap);
+}
+
+// Same measurement as centerAppContent, but for a screen with one section
+// (identified by CSS class) that should *stretch* to fill whatever vertical
+// space is actually available on the device, rather than the page relying
+// on a hardcoded height and overflowing on shorter phones. Used by the
+// Digital Flashcards carousel so its card-stack viewport is exactly as
+// tall as the screen allows -- shrinking automatically on a small phone
+// and growing on a large one -- instead of a fixed height that scrolls on
+// anything shorter than it was tuned for.
+function flexAppContent(){
+  var headerH = document.querySelector("header").getBoundingClientRect().height;
+  var TABBAR_RESERVED = 76; // matches body{padding-bottom:76px}
+  // main{padding:14px} adds space above and below #app that centerAppContent
+  // has never had to account for (it only ever centers content that's
+  // already shorter than the screen, so being off by main's padding just
+  // means slightly-imperfect centering) -- but here that gap is exactly
+  // what causes the last ~28px of otherwise-eliminated scroll, so it has to
+  // be measured and subtracted rather than assumed away.
+  var mainStyle = getComputedStyle(app.parentElement);
+  var mainPad = parseFloat(mainStyle.paddingTop||0) + parseFloat(mainStyle.paddingBottom||0);
+  var avail = window.innerHeight - headerH - TABBAR_RESERVED - mainPad;
+  var wrap = document.createElement("div");
+  wrap.className = "flex-fill-wrap";
   wrap.style.minHeight = Math.max(avail, 0) + "px";
   while(app.firstChild){ wrap.appendChild(app.firstChild); }
   app.appendChild(wrap);
@@ -6851,12 +6887,13 @@ function renderFcStepMode(){
   digitalTile.addEventListener("click", function(){ fcWizard.mode="digital"; fcGoNext(); });
   app.appendChild(digitalTile);
   fcBackAndRestart();
-  // Just 2 tiles + a restart pill — top-anchoring this leaves a lot of bare
-  // background above the tab bar on a full-height phone; this is the entry
-  // step of a linear wizard (never re-entered with extra content appended
-  // later the way Home's categories are), so vertical centering has none of
-  // the "jumps when it grows" risk that ruled it out for menu-style pages.
-  centerAppContent();
+  // Vertically centering this step (added in the 19 Sep Apple-HIG audit
+  // round, to avoid a slab of bare background below just 2 tiles) was
+  // reverted at Jacob's request the same day -- floating these two tiles
+  // mid-screen didn't match the top-anchored layout every other list/tile
+  // screen in the app uses, and consistency with the rest of the interface
+  // was judged more important here than filling the vertical space. Left
+  // top-anchored like Home, Verbs, etc. now.
 }
 
 function renderFcStepDirection(){
@@ -7564,15 +7601,18 @@ function renderDigitalSession(){
   var summaryLine = fcDigital.streakMode
     ? esc(fcDigital.headerTitle || "Daily Streak") + ' &middot; ' + fcDigital.deck.length + ' words'
     : fcSummaryLines().map(esc).join(' &middot; ');
-  app.appendChild(el(
-    '<div class="card" style="font-size:var(--fs-subtext); color:var(--muted); line-height:1.5;">'+
-      '<b style="color:var(--purple); font-size:var(--fs-subtext);">Digital Flashcards</b><br>'+
-      summaryLine+
-    '</div>'
-  ));
 
   if(fcDigital.ended){ renderDigitalFinish(); return; }
   if(fcDigital.items.length===0){ renderDigitalFinish(); return; }
+
+  // The page header (above #app) already shows "Flashcards" / the deck's
+  // own title, and the header row below shows live "X of Y" progress, so
+  // this no longer needs the boxy "Digital Flashcards" card it used to be
+  // (a bordered .card plus a bold repeated label) -- just a slim caption
+  // naming what the deck actually is, which is the one piece of info
+  // nothing else on screen carries. Saves real vertical space on short
+  // phones, which is the point of this pass.
+  app.appendChild(el('<div class="dc-summary-line">'+summaryLine+'</div>'));
 
   if(fcDigital.showDirectionToggle){
     var dirToggle = el(
@@ -7824,6 +7864,13 @@ function renderDigitalSession(){
   });
   navRow.appendChild(advanceBtn);
   app.appendChild(navRow);
+
+  // Stretch the card-stack viewport to fill whatever vertical space this
+  // device actually has, instead of the fixed height it used to be -- see
+  // flexAppContent's comment. Everything above/below the viewport keeps its
+  // natural height (flex-shrink:0 on those rows); only the viewport grows
+  // or shrinks.
+  flexAppContent();
 
   // Streak sessions can't be manually ended early — the whole point is that
   // all 20 cards have to be gone through to bank the day. Once they have
