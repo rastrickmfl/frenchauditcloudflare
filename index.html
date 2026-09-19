@@ -84,6 +84,15 @@
   }
   .info-btn:active{background:rgba(255,255,255,.3);}
   main{padding:14px; max-width:640px; margin:0 auto;}
+  /* Opt-in vertical centering for a screen whose content is a single,
+     self-contained choice (a wizard step with 2-3 options, an empty state) —
+     applied only by centerAppContent(), never globally, because a page whose
+     "short" state is actually a collapsed menu (Vocab's Home, before a
+     category is expanded) would otherwise visibly float mid-screen and then
+     jump to the top the moment more content appears (e.g. expanding a
+     category). min-height is set inline per-call from the actual available
+     space between the header and the tab bar, not guessed. */
+  .center-wrap{display:flex; flex-direction:column; justify-content:center;}
   .card{background:var(--card); border:1px solid var(--border); border-radius:14px; padding:14px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,.04);}
   /* Every card's lead-in "<b>Some label</b>" (dozens of them, across every
      screen) is a section title — give it Title styling in one place instead
@@ -117,6 +126,21 @@
   .vg-title{font-size:var(--fs-text); font-weight:700; color:var(--ink); line-height:1.3; overflow-wrap:break-word;}
   .vg-sub{font-size:var(--fs-subtext); color:var(--muted); font-weight:var(--fw-subtext); margin-top:2px;}
   .vocab-group-row .chev{color:var(--purple); font-size:20px; flex-shrink:0;}
+  /* A-Z jump index for the Verbs list (Contacts-style) — fixed to the
+     viewport edge, vertically centred in the space between the sticky
+     header and the fixed tab bar, independent of how tall main's own
+     content is or how far the page has scrolled. */
+  .az-index{
+    position:fixed; right:2px; top:50%; transform:translateY(-50%); z-index:5;
+    display:flex; flex-direction:column; align-items:center;
+    background:rgba(255,255,255,.85); border-radius:10px; padding:4px 2px;
+    box-shadow:0 1px 4px rgba(0,0,0,.08);
+  }
+  .az-index button{
+    border:none; background:transparent; color:var(--purple); font-weight:700;
+    font-size:11px; line-height:1.35; padding:0 4px; font-family:inherit;
+  }
+  .az-index button:active{color:var(--purple-dark);}
   /* Single arrow design used everywhere the app needs a literal back/
      forward arrow (back-navigation links, French<->English direction
      toggles) — a minimalist rounded-stroke chevron (round cap/join),
@@ -169,7 +193,14 @@
   .q10-card{flex:1; min-width:0;}
   .q10-card .word{margin-bottom:0;}
   .segmented{display:flex; background:var(--tint); border-radius:12px; padding:4px; margin-bottom:12px;}
-  .segmented button{flex:1; border:none; background:transparent; padding:10px; border-radius:9px; font-weight:700; color:var(--purple); font-size:var(--fs-text);}
+  /* Apple's HIG explicitly avoids multi-line segmented-control labels — a
+     control should read as one glance, not a paragraph. padding is tighter
+     horizontally than vertically (touch target height is unaffected) and
+     letter-spacing is nudged in very slightly — neither is tracked by
+     design-lint.mjs (it only checks font-size/font-weight), so this closes
+     the "Foundation + Higher" two-line wrap on a 390px-wide phone without
+     shrinking the type-scale font-size or abbreviating the label text. */
+  .segmented button{flex:1; border:none; background:transparent; padding:10px 4px; border-radius:9px; font-weight:700; color:var(--purple); font-size:var(--fs-text); letter-spacing:-0.2px;}
   .segmented button.active{background:var(--purple); color:#fff;}
   .cathead{font-weight:800; color:var(--purple); font-size:var(--fs-eyebrow); letter-spacing:.06em; text-transform:uppercase; margin:16px 2px 6px;}
   .tier-heading{display:inline-block; font-weight:800; color:#fff; background:var(--purple); font-size:var(--fs-eyebrow); letter-spacing:.06em; text-transform:uppercase; padding:6px 14px; border-radius:20px; margin:18px 0 8px;}
@@ -3007,6 +3038,26 @@ var app = document.getElementById("app");
 var titleEl = document.getElementById("pageTitle");
 var backBtn = document.getElementById("backBtn");
 var teacherBadgeEl = document.getElementById("teacherBadge");
+
+// Vertically centres whatever a render function has just appended to #app —
+// call this as the LAST line of a render function, after every appendChild.
+// Only meant for a self-contained, single-purpose screen (a wizard step
+// offering 2-3 choices, an empty state) that would otherwise pin its content
+// to the top and leave a slab of bare background above the tab bar. Never
+// called from a menu/list-style page (Home, Verbs, etc.) — see the
+// .center-wrap CSS comment above for why that would be worse, not better.
+// Available height is measured, not guessed, so it stays correct regardless
+// of header height (one vs two-line titles, back button present or not).
+function centerAppContent(){
+  var headerH = document.querySelector("header").getBoundingClientRect().height;
+  var TABBAR_RESERVED = 76; // matches body{padding-bottom:76px}
+  var avail = window.innerHeight - headerH - TABBAR_RESERVED;
+  var wrap = document.createElement("div");
+  wrap.className = "center-wrap";
+  wrap.style.minHeight = Math.max(avail, 0) + "px";
+  while(app.firstChild){ wrap.appendChild(app.firstChild); }
+  app.appendChild(wrap);
+}
 
 // ---------- info button + popup (per-page "i" icon in the header) ----------
 var infoBtn = document.getElementById("infoBtn");
@@ -6430,6 +6481,11 @@ function renderIndependentStudy(){
   }
   if(myIsTasksUi.tasks.length===0){
     app.appendChild(el('<div class="card"><b>Nothing set yet</b><p class="muted">Your teacher hasn\'t set any Independent Study tasks for you yet — check back nearer your next vocab test.</p></div>'));
+    // A single card of text pinned to the top otherwise leaves most of the
+    // screen bare — a true empty state (no pending content can appear here
+    // without the whole branch re-rendering from scratch), so centering it
+    // carries none of the "grows and jumps" risk a menu page would have.
+    centerAppContent();
     return;
   }
   var tasks = myIsTasksUi.tasks.slice().sort(function(a,b){ return new Date(a.dueAt||0) - new Date(b.dueAt||0); });
@@ -6795,6 +6851,12 @@ function renderFcStepMode(){
   digitalTile.addEventListener("click", function(){ fcWizard.mode="digital"; fcGoNext(); });
   app.appendChild(digitalTile);
   fcBackAndRestart();
+  // Just 2 tiles + a restart pill — top-anchoring this leaves a lot of bare
+  // background above the tab bar on a full-height phone; this is the entry
+  // step of a linear wizard (never re-entered with extra content appended
+  // later the way Home's categories are), so vertical centering has none of
+  // the "jumps when it grows" risk that ruled it out for menu-style pages.
+  centerAppContent();
 }
 
 function renderFcStepDirection(){
@@ -30067,8 +30129,42 @@ function renderVerbs(){
     return normText(a.bareInfinitive || a.infinitive).localeCompare(normText(b.bareInfinitive || b.infinitive));
   });
 
+  function verbLetter(v){ return normText(v.bareInfinitive || v.infinitive).charAt(0).toUpperCase(); }
+
+  // A-Z jump index (Contacts-style) — with 300+ verbs sorted alphabetically
+  // and no other way to skip ahead besides the search box, scrolling to
+  // "T" one row at a time is a real cost. Only built when there's more than
+  // one letter to jump between, and only ever shown alongside the full,
+  // unfiltered list — a search result set or the conjugation detail view
+  // hide it via azIndexEl.style.display, restored whenever showList("") runs.
+  var azLetters = [];
+  (function(){
+    var seen = {};
+    availableVerbs.forEach(function(v){
+      var ch = verbLetter(v);
+      if(!seen[ch]){ seen[ch] = true; azLetters.push(ch); }
+    });
+  })();
+  var azIndexEl = null;
+  if(azLetters.length > 1){
+    azIndexEl = el('<div class="az-index"></div>');
+    azLetters.forEach(function(ch){
+      var btn = el('<button type="button">'+esc(ch)+'</button>');
+      btn.addEventListener("click", function(){
+        var target = bodyWrap.querySelector('[data-az="'+ch+'"]');
+        if(!target) return;
+        var headerH = document.querySelector("header").getBoundingClientRect().height;
+        target.style.scrollMarginTop = (headerH + 8) + "px";
+        target.scrollIntoView({behavior:"smooth", block:"start"});
+      });
+      azIndexEl.appendChild(btn);
+    });
+    app.appendChild(azIndexEl);
+  }
+
   function showList(filterQuery){
     bodyWrap.innerHTML = "";
+    if(azIndexEl) azIndexEl.style.display = filterQuery ? "none" : "";
     var list = availableVerbs;
     if(filterQuery){
       var nq = normText(filterQuery);
@@ -30082,6 +30178,7 @@ function renderVerbs(){
     }
     list.forEach(function(v){
       var tile = el('<div class="tile"><div><div>'+esc(capitalize(v.infinitive))+'</div><div class="sub">'+esc(v.english)+'</div></div><div class="chev">&rsaquo;</div></div>');
+      tile.dataset.az = verbLetter(v);
       tile.addEventListener("click", function(){ showDetail(v); });
       bodyWrap.appendChild(tile);
     });
@@ -30089,6 +30186,7 @@ function renderVerbs(){
 
   function showDetail(v){
     bodyWrap.innerHTML = "";
+    if(azIndexEl) azIndexEl.style.display = "none";
     var backBtnEl = el('<button class="btn secondary" style="margin-bottom:10px;">'+ARROW_BACK_HTML+' Back to verb list</button>');
     backBtnEl.addEventListener("click", function(){
       var sb = document.getElementById("verbSearchBox");
