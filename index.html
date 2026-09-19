@@ -322,6 +322,55 @@
   .dc-nav-row button{background:none; border:none; color:var(--purple); font-weight:700; font-size:var(--fs-text); padding:8px 4px;}
   .dc-nav-row button:disabled{color:var(--border); pointer-events:none;}
   .dc-nav-row .skip{color:var(--muted); font-weight:600;}
+  /* Full-height 3-zone session layout (space-use pass, 19 Sep 2026) — the
+     header/tab bar are already hidden via body.fc-session-active while a
+     session is active, so this screen has the whole viewport to itself.
+     dc-top-zone keeps its natural height; dc-center-zone (flex:1) centres
+     the card viewport in whatever's left, so the card sits dead-centre on
+     tall phones (e.g. a Galaxy S26 Ultra) instead of floating high with
+     empty space below; dc-bottom-zone (rating row, then Previous/Skip)
+     stays pinned to the very bottom. 100dvh, not vh, so Chrome's address
+     bar showing/hiding on scroll doesn't clip the bottom row or leave a
+     gap — the vh line above it is a fallback for browsers that don't
+     support dvh yet, overridden by the dvh line wherever it's supported.
+     On a screen too short to fit everything at once, dc-center-zone
+     simply can't shrink below the card's own fixed height, so the shell
+     grows taller than the viewport and the page scrolls as a fallback —
+     same graceful degradation main's own overflow-y:scroll already gives
+     every other screen, nothing special-cased for it here. */
+  .dc-shell{
+    display:flex; flex-direction:column;
+    min-height:calc(100vh - 28px); /* 28px = main's own 14px top+14px bottom padding */
+    min-height:calc(100dvh - 28px);
+  }
+  .dc-top-zone{flex-shrink:0;}
+  /* flex-direction:column (not row) so the cross axis is horizontal —
+     .dc-cc-viewport (its only child) keeps stretching to the full
+     available width by default, exactly like the plain block element it
+     used to be, and only its vertical position is centred by
+     justify-content. A row-direction flex-center here would instead
+     shrink the viewport to its content's own intrinsic width (effectively
+     0, since its cards are all position:absolute) — caught via screenshot
+     during this change. */
+  .dc-center-zone{flex:1; min-height:0; display:flex; flex-direction:column; justify-content:center;}
+  .dc-center-zone .dc-cc-viewport{margin:0;}
+  .dc-bottom-zone{flex-shrink:0;}
+  /* The rating row's height is always reserved in dc-bottom-zone once a
+     card is flippable (see renderDigitalSession's ragRow build below) —
+     it's rendered from the first frame of every ratable card, just
+     invisible until revealed==true, rather than only being added to the
+     DOM on reveal. That's what keeps the card fixed in dc-center-zone:
+     if the row only appeared on reveal, dc-bottom-zone would grow at
+     that moment, dc-center-zone's available space would shrink to match,
+     and the card would visibly nudge upward the instant it's flipped.
+     Reserving the space up front means dc-bottom-zone's height — and so
+     the card's centred position — never changes across the reveal. This
+     doesn't reopen the small-phone scroll-overflow the "simplified
+     session round" fixed (design-system-rules.md): the tallest state
+     that was verified at zero overflow on a 375x667 screen already had
+     this row visible, so reserving the same height earlier in the flow
+     never asks for more room than that already-tested worst case. */
+  .dc-rag-row.dc-rag-reserved{visibility:hidden; pointer-events:none;}
   .dc-finish{background:var(--card); border:1px solid var(--border); border-radius:16px; padding:26px 20px; text-align:center;}
   .dc-finish h2{margin:0 0 6px; color:var(--purple); font-size:var(--fs-title);}
   .dc-breakdown{display:flex; justify-content:center; gap:18px; margin:18px 0;}
@@ -7639,6 +7688,19 @@ function renderDigitalSession(){
   if(fcDigital.ended){ renderDigitalFinish(); return; }
   if(fcDigital.items.length===0){ renderDigitalFinish(); return; }
 
+  // Three-zone shell (see .dc-shell in the stylesheet) — attached to #app
+  // immediately, before anything is built, so the carousel's card-slide
+  // .animate() calls further down still run on nodes that are already in
+  // the live document, exactly as before this zoning was introduced.
+  var topZone = el('<div class="dc-top-zone"></div>');
+  var centerZone = el('<div class="dc-center-zone"></div>');
+  var bottomZone = el('<div class="dc-bottom-zone"></div>');
+  var shell = el('<div class="dc-shell"></div>');
+  shell.appendChild(topZone);
+  shell.appendChild(centerZone);
+  shell.appendChild(bottomZone);
+  app.appendChild(shell);
+
   if(fcDigital.showDirectionToggle){
     var dirToggle = el(
       '<div class="segmented" style="margin-bottom:2px;">'+
@@ -7661,11 +7723,11 @@ function renderDigitalSession(){
         render();
       });
     });
-    app.appendChild(dirToggle);
+    topZone.appendChild(dirToggle);
   }
 
   if(fcDigital.lap>1 && fcDigital.ratable){
-    app.appendChild(el('<div class="banner">&#128257; Round '+fcDigital.lap+' &mdash; focusing on red &amp; amber words, with green words mixed in.</div>'));
+    topZone.appendChild(el('<div class="banner">&#128257; Round '+fcDigital.lap+' &mdash; focusing on red &amp; amber words, with green words mixed in.</div>'));
   }
 
   var items = fcDigital.items;
@@ -7693,9 +7755,9 @@ function renderDigitalSession(){
   if(!fcDigital.streakMode){
     headerRow.querySelector("#dcCloseBtn").addEventListener("click", endDigitalSessionNow);
   }
-  app.appendChild(headerRow);
+  topZone.appendChild(headerRow);
   if(fcDigital.lap>1 || fcDigital.ratable){
-    app.appendChild(el(
+    topZone.appendChild(el(
       '<div class="dc-progress-row"><span>'+(fcDigital.lap>1 ? 'Round '+fcDigital.lap : '')+'</span>'+
       (fcDigital.ratable ? '<span>'+ratedCount+' rated</span>' : '')+'</div>'
     ));
@@ -7709,9 +7771,9 @@ function renderDigitalSession(){
       '</div>'
     );
     toggleRow.addEventListener("click", toggleAudioMode);
-    app.appendChild(toggleRow);
+    topZone.appendChild(toggleRow);
     if(fcDigital.audioMode && !fcDigital.revealed){
-      app.appendChild(el('<div class="dc-audio-hint">Listen, then tap &#128065; or the card itself to see the word.</div>'));
+      topZone.appendChild(el('<div class="dc-audio-hint">Listen, then tap &#128065; or the card itself to see the word.</div>'));
     }
   }
 
@@ -7824,7 +7886,7 @@ function renderDigitalSession(){
       built.push({el:cardEl, i:i, d:d});
     })(i);
   }
-  app.appendChild(viewport);
+  centerZone.appendChild(viewport);
 
   // Play the slide: for each card actually on screen, animate from where it
   // sat relative to the *previous* index to where it sits relative to the
@@ -7845,39 +7907,46 @@ function renderDigitalSession(){
     });
   }
 
-  if(fcDigital.revealed && fcDigital.ratable && item.id){
+  // Built (and given its full, real height) from the first frame a
+  // ratable card is on screen, not only once revealed==true — see the
+  // .dc-rag-row.dc-rag-reserved comment in the stylesheet for why: this
+  // is what stops the card in dc-center-zone from nudging position the
+  // moment it's flipped and the row becomes visible.
+  if(fcDigital.ratable && item.id){
     var r = getRating(item.id);
     var ragRow = el(
-      '<div class="dc-rag-row">'+
+      '<div class="dc-rag-row'+(fcDigital.revealed ? '' : ' dc-rag-reserved')+'">'+
         '<button class="r'+(r==="R"?" sel":"")+'" data-r="R"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>Still learning</button>'+
         '<button class="a'+(r==="A"?" sel":"")+'" data-r="A"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 8v5M12 16.5v.1"/></svg>Getting there</button>'+
         '<button class="g'+(r==="G"?" sel":"")+'" data-r="G"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg>Confident</button>'+
       '</div>'
     );
-    ragRow.querySelectorAll("button").forEach(function(btn){
-      btn.addEventListener("click", function(e){
-        e.stopPropagation();
-        if(fcDigital.advancing) return;
-        var val = btn.dataset.r;
-        if(item.id){
-          // Unlike the plain word-list rating dots (wordCardHtml), tapping
-          // the colour a card is already showing here is a *reconfirm*, not
-          // an undo -- the reveal screen pre-highlights the existing rating,
-          // so re-tapping it is the natural way to say "yep, still red"
-          // mid-session. Clearing a rating entirely is still available from
-          // the ordinary word-list view; deliberately not replicating that
-          // toggle-to-delete behaviour here, where it would silently wipe a
-          // rating the pupil meant to confirm.
-          state.ratings[item.id] = val;
-          saveState();
-          refreshProgressIndicators();
-        }
-        fcDigital.sessionRatings[item.id||("i"+idx)] = val;
-        render();
-        scheduleDigitalAdvance(1000);
+    if(fcDigital.revealed){
+      ragRow.querySelectorAll("button").forEach(function(btn){
+        btn.addEventListener("click", function(e){
+          e.stopPropagation();
+          if(fcDigital.advancing) return;
+          var val = btn.dataset.r;
+          if(item.id){
+            // Unlike the plain word-list rating dots (wordCardHtml), tapping
+            // the colour a card is already showing here is a *reconfirm*, not
+            // an undo -- the reveal screen pre-highlights the existing rating,
+            // so re-tapping it is the natural way to say "yep, still red"
+            // mid-session. Clearing a rating entirely is still available from
+            // the ordinary word-list view; deliberately not replicating that
+            // toggle-to-delete behaviour here, where it would silently wipe a
+            // rating the pupil meant to confirm.
+            state.ratings[item.id] = val;
+            saveState();
+            refreshProgressIndicators();
+          }
+          fcDigital.sessionRatings[item.id||("i"+idx)] = val;
+          render();
+          scheduleDigitalAdvance(1000);
+        });
       });
-    });
-    app.appendChild(ragRow);
+    }
+    bottomZone.appendChild(ragRow);
   }
 
   var navRow = el('<div class="dc-nav-row"></div>');
@@ -7900,7 +7969,7 @@ function renderDigitalSession(){
     advanceDigitalCard();
   });
   navRow.appendChild(advanceBtn);
-  app.appendChild(navRow);
+  bottomZone.appendChild(navRow);
 
   // Streak sessions can't be manually ended early — the whole point is that
   // all 20 cards have to be gone through to bank the day. Once they have
