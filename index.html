@@ -6841,14 +6841,22 @@ var fcStepKey = "mode";
 // in-memory (not persisted directly) state for the Custom Vocabulary List builder
 var fcCustom = {mode:"landing", wordIds:[], listId:null, listName:null};
 
+// Digital flows (19 Sep 2026, wizard-shortening round) skip the separate
+// "colors"/"direction"/"start" screens entirely — colour filter and
+// direction are both live toggles inside the flashcard session itself
+// (see renderDigitalSession's showColorsToggle/showDirectionToggle), and
+// picking the last remaining option launches straight into the session via
+// fcLaunchDigitalFromWizard() rather than landing on a summary screen.
+// Printed flows are unchanged — they still need an explicit colours choice
+// and a "Ready to print"/Generate PDF confirm screen.
 function fcSequence(){
   if(!fcWizard.mode) return ["mode"];
   var digital = fcWizard.mode==="digital";
-  if(fcWizard.type==="verb") return digital ? ["mode","type","difficulty","direction","start"] : ["mode","type","difficulty","count","generate"];
-  if(fcWizard.type==="vocab") return digital ? ["mode","type","colors","theme","direction","count","start"] : ["mode","type","colors","theme","count","generate"];
-  if(fcWizard.type==="custom") return digital ? ["mode","type","direction","custom"] : ["mode","type","custom"];
-  if(fcWizard.type==="mysets") return digital ? ["mode","type","direction","mysets"] : ["mode","type","mysets"];
-  if(fcWizard.type==="teacherlist") return digital ? ["mode","type","teacherlist","colors","direction","count","start"] : ["mode","type","teacherlist","colors","count","generate"];
+  if(fcWizard.type==="verb") return digital ? ["mode","type","difficulty"] : ["mode","type","difficulty","count","generate"];
+  if(fcWizard.type==="vocab") return digital ? ["mode","type","theme","count"] : ["mode","type","colors","theme","count","generate"];
+  if(fcWizard.type==="custom") return ["mode","type","custom"];
+  if(fcWizard.type==="mysets") return ["mode","type","mysets"];
+  if(fcWizard.type==="teacherlist") return digital ? ["mode","type","teacherlist","count"] : ["mode","type","teacherlist","colors","count","generate"];
   return ["mode","type"];
 }
 function fcRerender(){ render(); window.scrollTo(0,0); }
@@ -6984,20 +6992,10 @@ function renderFcStepMode(){
   // than filling the vertical space below these two tiles.
 }
 
-function renderFcStepDirection(){
-  fcStepHeader("Which way round?");
-  // Verbs skip the count step entirely (see fcSequence) — the full tense/person
-  // combination set is huge, so digital verb sessions always go straight to a
-  // Lucky dip rather than offering a "complete set" that isn't really one deck.
-  var setVerbCount = function(){ if(fcWizard.type==="verb"){ fcWizard.count=30; fcWizard.luckyDip=true; } };
-  var frTile = el('<div class="tile"><div><div>French '+ARROW_FWD_HTML+' English</div><div class="sub">See the French, recall the English</div></div><div class="chev">&rsaquo;</div></div>');
-  frTile.addEventListener("click", function(){ fcWizard.direction="fr2en"; setVerbCount(); fcGoNext(); });
-  app.appendChild(frTile);
-  var enTile = el('<div class="tile"><div><div>English '+ARROW_FWD_HTML+' French</div><div class="sub">See the English, recall the French</div></div><div class="chev">&rsaquo;</div></div>');
-  enTile.addEventListener("click", function(){ fcWizard.direction="en2fr"; setVerbCount(); fcGoNext(); });
-  app.appendChild(enTile);
-  fcBackAndRestart();
-}
+// renderFcStepDirection() (the old "Which way round?" wizard screen) was
+// removed in the 19 Sep 2026 wizard-shortening round — no sequence reaches
+// "direction" any more, digital sessions default to fr2en and offer the
+// live in-session toggle instead (see renderDigitalSession).
 
 function renderFcStepType(){
   fcStepHeader("What type of flashcard do you want to generate?");
@@ -7058,7 +7056,9 @@ function renderFcStepMySets(){
         }
         var items = s.words.map(function(w){ return {fr:w.fr, en:w.en}; });
         if(fcWizard.mode==="digital"){
-          startDigitalSession(shuffledCopy(items), fcWizard.direction, false);
+          // No wizard "direction" step for My Vocabulary Sets any more — always
+          // starts fr2en, with the live in-session toggle to flip it.
+          startDigitalSession(shuffledCopy(items), "fr2en", false, {showDirectionToggle:true});
           return;
         }
         buildFlashcardPrintArea(items);
@@ -7119,25 +7119,70 @@ function renderFcStepTheme(){
   fcBackAndRestart();
 }
 
+// Builds the deck from whatever's in fcWizard and launches straight into
+// the digital session (19 Sep 2026, wizard-shortening round) — replaces the
+// old "Ready to start" summary screen. Colour filter defaults to Red+Amber
+// (fcWizard.colors is never set by a digital wizard step any more) and is
+// then a live toggle inside the session for vocab/teacherlist decks, same
+// as direction. Returns false (and builds nothing) if no words match, so
+// the caller can show an inline message instead of launching into an empty
+// deck.
+function fcLaunchDigitalFromWizard(){
+  if(!fcWizard.colors) fcWizard.colors = {R:true, A:true, G:false};
+  var result = fcBuildChosenItems();
+  if(result.items.length===0) return false;
+  var ratable = fcWizard.type==="vocab" || fcWizard.type==="teacherlist";
+  startDigitalSession(shuffledCopy(result.items), "fr2en", ratable, {
+    showDirectionToggle: true,
+    showColorsToggle: ratable
+  });
+  return true;
+}
+
 function renderFcStepDifficulty(){
   fcStepHeader("Pick a verb difficulty");
+  var msgEl = el('<p class="muted"></p>');
   var labels = verbDifficultyLabels();
   [["easy",labels.easy],["medium",labels.medium],["hard",labels.hard]].forEach(function(pair){
     var t = el('<div class="tile"><div><div>'+esc(pair[1])+'</div></div><div class="chev">&rsaquo;</div></div>');
-    t.addEventListener("click", function(){ fcWizard.difficulty=pair[0]; fcGoNext(); });
+    t.addEventListener("click", function(){
+      fcWizard.difficulty=pair[0];
+      if(fcWizard.mode==="digital"){
+        // Verbs skip the count step entirely (see fcSequence) — the full
+        // tense/person combination set is huge, so digital verb sessions
+        // always go straight to a Lucky dip rather than offering a
+        // "complete set" that isn't really one deck.
+        fcWizard.count = 30; fcWizard.luckyDip = true;
+        if(!fcLaunchDigitalFromWizard()){
+          msgEl.textContent = "No matching flashcards for this difficulty — go back and try a different one.";
+          msgEl.style.color = "var(--red)";
+        }
+      } else {
+        fcGoNext();
+      }
+    });
     app.appendChild(t);
   });
+  app.appendChild(msgEl);
   fcBackAndRestart();
 }
 
 function renderFcStepCount(){
   fcStepHeader("How many flashcards?");
+  var msgEl = el('<p class="muted"></p>');
   if(fcWizard.mode==="digital"){
+    var chooseAndLaunch = function(count, luckyDip){
+      fcWizard.count = count; fcWizard.luckyDip = luckyDip;
+      if(!fcLaunchDigitalFromWizard()){
+        msgEl.textContent = "No matching flashcards for these options — go back and try different choices.";
+        msgEl.style.color = "var(--red)";
+      }
+    };
     var completeTile = el('<div class="tile"><div><div>Complete set of vocab</div><div class="sub">Every matching word — loops back round when you finish, focusing more on red &amp; amber</div></div><div class="chev">&rsaquo;</div></div>');
-    completeTile.addEventListener("click", function(){ fcWizard.count="all"; fcWizard.luckyDip=false; fcGoNext(); });
+    completeTile.addEventListener("click", function(){ chooseAndLaunch("all", false); });
     app.appendChild(completeTile);
     var luckyTile = el('<div class="tile"><div><div>Lucky dip</div><div class="sub">30 random flashcards — a quick 5 minute session</div></div><div class="chev">&rsaquo;</div></div>');
-    luckyTile.addEventListener("click", function(){ fcWizard.count=30; fcWizard.luckyDip=true; fcGoNext(); });
+    luckyTile.addEventListener("click", function(){ chooseAndLaunch(30, true); });
     app.appendChild(luckyTile);
   } else {
     [12,24,36,48].forEach(function(n){
@@ -7151,6 +7196,7 @@ function renderFcStepCount(){
       app.appendChild(allTile);
     }
   }
+  app.appendChild(msgEl);
   fcBackAndRestart();
 }
 
@@ -7182,28 +7228,10 @@ function renderFcStepGenerate(){
   fcBackAndRestart();
 }
 
-function renderFcStepStart(){
-  fcStepHeader("Ready to start");
-  var card = el('<div class="card"><b>Your flashcard deck</b><ul style="margin:8px 0 0; padding-left:18px;">'+
-    fcSummaryLines().map(function(l){ return '<li style="margin-bottom:4px;">'+esc(l)+'</li>'; }).join('')+
-    '</ul></div>');
-  app.appendChild(card);
-  var startBtn = el('<button class="btn big">Start reviewing</button>');
-  var msgEl = el('<p class="muted"></p>');
-  startBtn.addEventListener("click", function(){
-    var result = fcBuildChosenItems();
-    if(result.items.length===0){
-      msgEl.textContent = "No matching flashcards for these options — go back and try different choices.";
-      msgEl.style.color = "var(--red)";
-      return;
-    }
-    var ratable = fcWizard.type==="vocab" || fcWizard.type==="teacherlist";
-    startDigitalSession(shuffledCopy(result.items), fcWizard.direction, ratable);
-  });
-  app.appendChild(startBtn);
-  app.appendChild(msgEl);
-  fcBackAndRestart();
-}
+// renderFcStepStart() (the old "Ready to start" summary screen) was removed
+// in the 19 Sep 2026 wizard-shortening round — no digital sequence reaches
+// "start" any more; renderFcStepCount()/renderFcStepDifficulty() launch the
+// session directly via fcLaunchDigitalFromWizard() instead.
 
 // ---- Custom Vocabulary List (search, build, save, print) ----
 function fmtListDate(iso){
@@ -7384,7 +7412,9 @@ function renderFcCustomBuilder(){
       return;
     }
     if(fcWizard.mode==="digital"){
-      startDigitalSession(shuffledCopy(items), fcWizard.direction, true);
+      // No wizard "direction" step for Custom sets any more — always starts
+      // fr2en, with the live in-session toggle to flip it.
+      startDigitalSession(shuffledCopy(items), "fr2en", true, {showDirectionToggle:true});
       return;
     }
     buildFlashcardPrintArea(items);
@@ -7455,10 +7485,8 @@ function renderFlashcards(){
   else if(fcStepKey==="colors") renderFcStepColors();
   else if(fcStepKey==="theme") renderFcStepTheme();
   else if(fcStepKey==="difficulty") renderFcStepDifficulty();
-  else if(fcStepKey==="direction") renderFcStepDirection();
   else if(fcStepKey==="count") renderFcStepCount();
   else if(fcStepKey==="generate") renderFcStepGenerate();
-  else if(fcStepKey==="start") renderFcStepStart();
   else if(fcStepKey==="custom") renderFcStepCustom();
   else if(fcStepKey==="mysets") renderFcStepMySets();
   else if(fcStepKey==="teacherlist") renderFcStepTeacherList();
@@ -7537,13 +7565,17 @@ function cancelScheduledDigitalAdvance(){
   fcDigital.advancing = false;
 }
 
-// opts: {showDirectionToggle, headerTitle, streakMode} — all optional, used
-// by Independent Study's Learn screen (mid-session French<->English toggle,
-// and "Independent Study" in the header instead of "Flashcards") and by the
-// daily streak session (streakMode: finite 20-card deck that ends instead of
-// looping, and banks a streak day the moment it's completed in full — see
-// advanceDigitalCard()). Every pre-existing call site omits opts, so
-// behaviour there is unchanged.
+// opts: {showDirectionToggle, showColorsToggle, headerTitle, streakMode} —
+// all optional. showDirectionToggle is used by Independent Study's Learn
+// screen (mid-session French<->English toggle, and "Independent Study" in
+// the header instead of "Flashcards") and by the daily streak session
+// (streakMode: finite 20-card deck that ends instead of looping, and banks
+// a streak day the moment it's completed in full — see advanceDigitalCard()).
+// showColorsToggle (19 Sep 2026, wizard-shortening round) is the same idea
+// for the Red+Amber/All-words choice — set by fcLaunchDigitalFromWizard()
+// for vocab/teacherlist decks, where changing it mid-session rebuilds the
+// deck from fcWizard's still-live theme/list/count settings (see the
+// showColorsToggle click handler in renderDigitalSession).
 function startDigitalSession(deckItems, direction, ratable, opts){
   opts = opts || {};
   var deck = deckItems.slice();
@@ -7551,7 +7583,8 @@ function startDigitalSession(deckItems, direction, ratable, opts){
     active:true, ended:false, advancing:false, deck:deck, items:deck.slice(),
     direction:direction||"fr2en", ratable:!!ratable,
     idx:0, revealed:false, lap:1, totalSeen:0, sessionRatings:{},
-    showDirectionToggle: !!opts.showDirectionToggle, headerTitle: opts.headerTitle || null,
+    showDirectionToggle: !!opts.showDirectionToggle, showColorsToggle: !!opts.showColorsToggle,
+    headerTitle: opts.headerTitle || null,
     streakMode: !!opts.streakMode, streakCompleted:false,
     audioMode:false, curFr:false, playingIdx:null,
     animateFromIdx:null, lastAutoPlayedIdx:null
@@ -7778,6 +7811,44 @@ function renderDigitalSession(){
       });
     });
     topZone.appendChild(dirToggle);
+  }
+
+  // Live "which words" toggle (19 Sep 2026, wizard-shortening round) —
+  // replaces the old wizard "colours" screen for vocab/teacherlist decks.
+  // Unlike the direction toggle, this changes which words are actually in
+  // the deck, so flipping it rebuilds the deck from fcWizard's still-live
+  // theme/teacherListId/count/luckyDip settings (fcWizard is only reset on
+  // exitDigitalSession, so it's still there mid-session) and restarts the
+  // session fresh — there's no sensible way to swap the word set under a
+  // half-finished run, so this is a deliberate "start this deck over with
+  // different words", same as it would be from the wizard.
+  if(fcDigital.showColorsToggle){
+    var colorsToggle = el(
+      '<div class="segmented" style="margin-bottom:2px;">'+
+        '<button data-cg="0" class="'+(!fcWizard.colors.G?"active":"")+'">Red + Amber</button>'+
+        '<button data-cg="1" class="'+(fcWizard.colors.G?"active":"")+'">All words</button>'+
+      '</div>'
+    );
+    colorsToggle.querySelectorAll("button").forEach(function(b){
+      b.addEventListener("click", function(){
+        var wantG = b.dataset.cg==="1";
+        if(!!fcWizard.colors.G === wantG) return;
+        var prevColors = fcWizard.colors;
+        fcWizard.colors = {R:true, A:true, G:wantG};
+        var result = fcBuildChosenItems();
+        if(result.items.length===0){
+          fcWizard.colors = prevColors; // nothing matches the new filter — leave the running deck alone
+          return;
+        }
+        cancelScheduledDigitalAdvance();
+        startDigitalSession(shuffledCopy(result.items), fcDigital.direction, fcDigital.ratable, {
+          showDirectionToggle: fcDigital.showDirectionToggle,
+          showColorsToggle: fcDigital.showColorsToggle,
+          headerTitle: fcDigital.headerTitle
+        }); // startDigitalSession() already re-renders (fcRerender()) — no extra render() call needed here
+      });
+    });
+    topZone.appendChild(colorsToggle);
   }
 
   if(fcDigital.lap>1 && fcDigital.ratable){
