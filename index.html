@@ -105,6 +105,14 @@
      76px gap at the bottom. */
   body.fc-session-active header, body.fc-session-active nav.tabbar{display:none;}
   body.fc-session-active{padding-bottom:0;}
+  /* Conjugation Guide: same treatment as the Digital Flashcards session
+     above — the blue app header is redundant once cg-header (its own
+     purple banner with back arrow, title, and a close X) is on screen,
+     and the bottom tab bar has no reason to stay visible while the guide
+     is open. Toggled on <body> from render() whenever route.name is
+     "conjGuide". */
+  body.cg-active header, body.cg-active nav.tabbar{display:none;}
+  body.cg-active{padding-bottom:0;}
   /* Opt-in vertical centering for a screen whose content is a single,
      self-contained choice (a wizard step with 2-3 options, an empty state) —
      applied only by centerAppContent(), never globally, because a page whose
@@ -572,6 +580,15 @@
   .cg-entry-tile svg.arrow-ic{color:#fff;}
 
   .cg-screen{background:#FBF9F5; margin:-14px -14px 0; padding-bottom:24px; min-height:calc(100vh - 120px);}
+  /* The 100vh-120px above was sized for when the blue app header (and the
+     bottom tab bar's reserved body padding) were still showing above/below
+     this screen. Now that both are hidden for the whole Conjugation Guide
+     (see body.cg-active above), that gap is stale — .cg-screen falls short
+     of the viewport and the plain page background (--bg) shows through
+     below it, a different, competing shade next to the guide's own cream
+     background and the tense boxes' colours. With the chrome gone there's
+     nothing left to subtract, so it can just fill the viewport. */
+  body.cg-active .cg-screen{min-height:100vh;}
   .cg-header{background:#3E1963; padding:18px 16px 14px;}
   .cg-header-row{display:flex; align-items:center; gap:12px;}
   .cg-header-row svg.arrow-ic-back{color:#fff; cursor:pointer;}
@@ -581,6 +598,12 @@
 
   .cg-section-label{color:#8A7F98; font-size:12px; font-weight:700; letter-spacing:.06em; padding:16px 16px 8px;}
   .cg-grid{padding:0 16px; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px;}
+  /* 2x3 on a narrow/phone-width screen (default above), 3x2 once there's
+     enough room — main is capped at 640px everywhere in this app, so this
+     breakpoint is about using that existing width better, not growing the
+     container. aspect-ratio:1 on .cg-box means going to 3 columns also
+     shrinks each box, which is the actual fix for the "too big" complaint. */
+  @media (min-width:520px){ .cg-grid{grid-template-columns:repeat(3,minmax(0,1fr));} }
   .cg-box{border-radius:14px; padding:12px; aspect-ratio:1; box-sizing:border-box; display:flex; flex-direction:column; align-items:flex-start; text-align:left; overflow:hidden; cursor:pointer; border:none; font-family:inherit;}
   .cg-box-title{font-size:var(--fs-title); font-weight:700;}
   .cg-box-desc{font-size:12px; line-height:1.3; margin-top:2px;}
@@ -3386,6 +3409,7 @@ function render(){
     backBtn.style.display = "none";
     teacherBadgeEl.style.display = "none";
     document.body.classList.remove("fc-session-active");
+    document.body.classList.remove("cg-active");
     app.innerHTML = "";
     renderLogin();
     return;
@@ -3393,6 +3417,7 @@ function render(){
   navTabbar.style.display = "";
   teacherBadgeEl.style.display = isTeacher() ? "" : "none";
   document.body.classList.toggle("fc-session-active", fcDigital.active && !fcDigital.ended);
+  document.body.classList.toggle("cg-active", route.name==="conjGuide");
   document.querySelectorAll("nav.tabbar button").forEach(function(b){
     b.classList.toggle("active", b.dataset.route===route.name);
   });
@@ -31420,6 +31445,9 @@ function renderConjGuide(){
     back.addEventListener("click", function(){ cgState.screen="landing"; cgRenderLanding(); });
     row.appendChild(back);
     row.appendChild(el('<h2 class="cg-header-title">'+esc(tense.name)+' — '+esc(tense.fr)+'</h2>'));
+    var closeBtn = el('<div class="cg-header-close">&times;</div>');
+    closeBtn.addEventListener("click", function(){ go("verbs"); });
+    row.appendChild(closeBtn);
     header.appendChild(row);
     wrap.appendChild(header);
 
