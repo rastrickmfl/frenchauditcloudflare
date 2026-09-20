@@ -562,7 +562,86 @@
   .progress-bar{height:8px; background:var(--tint); border-radius:6px; overflow:hidden; display:flex; margin-top:6px;}
   .progress-bar span{height:100%;}
   a{color:var(--purple);}
-</style>
+
+  /* ---------- Conjugation Guide ---------- */
+  .cg-entry-tile{background:#3E1963; border-radius:16px; padding:16px; display:flex; align-items:center; gap:14px; cursor:pointer; margin-bottom:14px; box-shadow:0 4px 14px rgba(62,25,99,0.18);}
+  .cg-entry-icon{width:42px; height:42px; border-radius:12px; background:#F6E7C6; display:flex; align-items:center; justify-content:center; flex-shrink:0;}
+  .cg-entry-text{flex-grow:1;}
+  .cg-entry-title{color:#fff; font-size:var(--fs-text); font-weight:700;}
+  .cg-entry-sub{color:#F0DDF5; font-size:var(--fs-subtext); margin-top:2px;}
+  .cg-entry-tile svg.arrow-ic{color:#fff;}
+
+  .cg-screen{background:#FBF9F5; margin:-14px -14px 0; padding-bottom:24px; min-height:calc(100vh - 120px);}
+  .cg-header{background:#3E1963; padding:18px 16px 14px;}
+  .cg-header-row{display:flex; align-items:center; gap:12px;}
+  .cg-header-row svg.arrow-ic-back{color:#fff; cursor:pointer;}
+  .cg-header-title{margin:0; font-size:var(--fs-title); font-weight:var(--fw-title); color:#fff; flex-grow:1;}
+  .cg-header-close{width:26px; height:26px; border-radius:999px; background:rgba(255,255,255,.14); display:flex; align-items:center; justify-content:center; color:#fff; font-size:15px; cursor:pointer; flex-shrink:0;}
+  .cg-header-sub{color:#E3C6EE; font-size:12px; margin-top:8px; margin-left:32px;}
+
+  .cg-section-label{color:#8A7F98; font-size:12px; font-weight:700; letter-spacing:.06em; padding:16px 16px 8px;}
+  .cg-grid{padding:0 16px; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px;}
+  .cg-box{border-radius:14px; padding:12px; aspect-ratio:1; box-sizing:border-box; display:flex; flex-direction:column; align-items:flex-start; text-align:left; overflow:hidden; cursor:pointer; border:none; font-family:inherit;}
+  .cg-box-title{font-size:var(--fs-title); font-weight:700;}
+  .cg-box-desc{font-size:12px; line-height:1.3; margin-top:2px;}
+  .cg-box-panel{margin-top:auto; width:100%; background:#fff; border-radius:10px; padding:6px 8px; box-sizing:border-box;}
+  .cg-box-example{display:flex; flex-wrap:wrap; align-items:center; gap:3px; font-size:13px; font-weight:700; line-height:1.4;}
+  .cg-box-en{font-size:11px; font-style:italic; color:#8A7F98; margin-top:3px;}
+  .cg-chiplet{padding:2px 5px; border-radius:5px;}
+
+  .cg-search-wrap{padding:14px 16px 0;}
+  .cg-search-label{color:#8A7F98; font-size:12px; font-weight:700; letter-spacing:.06em; margin-bottom:8px;}
+  .cg-search-row{border:1.5px solid #E4DAF0; border-radius:12px; padding:11px 14px; display:flex; align-items:center; gap:8px; background:#fff;}
+  .cg-search-row.cg-active{border-color:#3E1963;}
+  .cg-search-row input{border:none; outline:none; background:transparent; font-size:var(--fs-text); font-family:inherit; color:#221733; flex-grow:1; min-width:0;}
+  .cg-search-go{font-size:12px; font-weight:700; color:#3E1963; cursor:pointer; flex-shrink:0;}
+  .cg-search-verb{color:#221733; font-size:var(--fs-text); font-weight:600; flex-grow:1;}
+  .cg-search-clear{width:20px; height:20px; border-radius:999px; background:#F0EAF7; display:flex; align-items:center; justify-content:center; color:#3E1963; font-size:12px; cursor:pointer; flex-shrink:0;}
+  .cg-search-hint{font-size:11px; color:#B9AEC6; margin-top:4px;}
+  .cg-footer-note{text-align:center; color:#8A7F98; font-size:var(--fs-subtext); padding:18px 16px 4px;}
+
+  .cg-tabs-row{background:#fff; border-bottom:1px solid #EDE6F5; padding:10px 16px; display:flex; gap:6px; overflow-x:auto;}
+  .cg-tab{font-size:13px; border-radius:999px; padding:6px 14px; white-space:nowrap; flex-shrink:0; cursor:pointer; color:#8A7F98; border:none; font-family:inherit; background:transparent;}
+  .cg-tab.cg-active{background:#3E1963; color:#fff; font-weight:600;}
+  .cg-tab.cg-disabled{color:#C7C0D1; opacity:.55; cursor:default;}
+  .cg-dimmed-note{padding:10px 16px 0; font-size:12px; color:#8A7F98;}
+  .cg-dimmed-note b{font-weight:700; color:#574A66;}
+
+  .cg-irregular-chips{padding:12px 16px 0; display:flex; gap:8px; flex-wrap:wrap;}
+  .cg-irregular-chip{border:1.5px solid #E4DAF0; color:#6E637F; font-size:12px; border-radius:999px; padding:5px 12px; cursor:pointer; font-family:inherit; background:#fff;}
+  .cg-irregular-chip.cg-active{background:#3E1963; color:#fff; font-weight:600; border-color:#3E1963;}
+
+  .cg-formula-wrap{padding:20px 16px 0;}
+  .cg-formula-row{display:flex; align-items:flex-start; justify-content:center; gap:6px; flex-wrap:wrap;}
+  .cg-chip-wrap{position:relative;}
+  .cg-badge{position:absolute; top:-9px; left:-8px; width:18px; height:18px; border-radius:999px; background:#221733; color:#fff; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center;}
+  .cg-chip{border-radius:10px; padding:8px 10px; text-align:center;}
+  .cg-chip-label{font-size:11px; font-weight:700; letter-spacing:.04em;}
+  .cg-chip-sub{font-size:11px; margin-top:1px;}
+  .cg-plus{color:#B9AEC6; font-size:15px; font-weight:600; margin-top:8px;}
+  .cg-example-line{text-align:center; color:#8A7F98; font-size:12px; margin-top:8px; font-style:italic;}
+  .cg-example-line b{font-style:normal; font-weight:700;}
+
+  .cg-warning{margin:16px 16px 0; background:#FBF0DA; border:1px solid #F0DBA8; border-radius:12px; padding:13px 14px; display:flex; gap:10px; align-items:flex-start;}
+  .cg-warning-badge{width:20px; height:20px; border-radius:999px; background:#C9962E; color:#fff; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px;}
+  .cg-warning-text{font-size:13px; color:#6B4A0E; line-height:1.45;}
+
+  .cg-table-wrap{padding:16px 16px 0;}
+  .cg-table-head{display:grid; border-radius:10px 10px 0 0; overflow:hidden;}
+  .cg-table-head > div{font-size:11px; font-weight:700; letter-spacing:.03em; padding:8px 10px;}
+  .cg-table-row{display:grid; border-bottom:1px solid #F0EAF7; padding:9px 0; align-items:center;}
+  .cg-table-row:last-child{border-bottom:none;}
+  .cg-table-row > div{padding:0 10px;}
+  .cg-table-pronoun{font-size:13px;}
+  .cg-table-pronoun span{color:#B9AEC6; font-size:11px;}
+  .cg-table-form{font-size:15px; font-weight:600;}
+  .cg-table-note{background:#F4F0F8; border-radius:10px; padding:10px 12px; font-size:12px; color:#574A66; text-align:center; margin-top:10px;}
+  .cg-dual-row{font-size:13px; line-height:1.5;}
+  .cg-dual-row div{margin-top:2px;}
+  .cg-dual-row div:first-child{margin-top:0;}
+  .cg-dual-row b{font-weight:700; color:#8A7F98;}
+
+  </style>
 </head>
 <body>
 <header>
@@ -3355,6 +3434,7 @@ function render(){
   else if(route.name==="sync") renderSync();
   else if(route.name==="flashcards") renderFlashcards();
   else if(route.name==="verbs") renderVerbs();
+  else if(route.name==="conjGuide") renderConjGuide();
   else if(route.name==="personal") renderPersonal();
   else if(route.name==="classes") renderClasses();
   else if(route.name==="teacherLists") renderTeacherLists();
@@ -30556,6 +30636,10 @@ function renderVerbs(){
 
   var searchCard = el('<div class="card"><input type="text" id="verbSearchBox" placeholder="French or English, e.g. jouer, joues, I play..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></div>');
   app.appendChild(searchCard);
+  var cgEntryTile = el('<div class="cg-entry-tile"><div class="cg-entry-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#3E1963" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></div><div class="cg-entry-text"><div class="cg-entry-title">Conjugation Guide</div><div class="cg-entry-sub">Step-by-step formulas for every tense</div></div><svg class="arrow-ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>');
+  cgEntryTile.addEventListener("click", function(){ go("conjGuide"); });
+  app.appendChild(cgEntryTile);
+
 
   var bodyWrap = el('<div id="verbBody"></div>');
   app.appendChild(bodyWrap);
@@ -30757,6 +30841,601 @@ function renderVerbs(){
   document.getElementById("verbSearchBox").addEventListener("input", function(e){ showList(e.target.value.trim()); });
   showList("");
 }
+
+
+// ---------- Conjugation Guide (pattern-teaching view, separate from the
+// verb search/detail above) ----------
+// Fixed demo verbs only (v1, agreed scope) — jouer/regarder/finir/vendre
+// for the four regular/irregular tabs, etre/avoir/aller/faire for the
+// Irregular tab's chip picker, se doucher for the Reflexive tab. Reuses
+// this file's existing PERSONS-independent reflexivePronoun()/
+// REFLEXIVE_PRONOUN (defined above, near VERBS) for reflexive-pronoun
+// elision rather than re-deriving it.
+var cgPRONOUNS = ["je","tu","il / elle","nous","vous","ils / elles"];
+var cgPRONOUN_ENGLISH = ["I","you","he / she","we","you","they"];
+
+var cgREGULARS = {
+  jouer:    { type:"er", stem:"jou" },
+  regarder: { type:"er", stem:"regard" },
+  finir:    { type:"ir", stem:"fin" },
+  vendre:   { type:"re", stem:"vend" }
+};
+var cgIRREGULARS = {
+  etre:  { present:["suis","es","est","sommes","êtes","sont"], participle:"été",  futureStem:"ser",  imperfectStem:"ét",   auxType:"avoir", infinitive:"être" },
+  avoir: { present:["ai","as","a","avons","avez","ont"],       participle:"eu",   futureStem:"aur",  imperfectStem:"av",   auxType:"avoir", infinitive:"avoir" },
+  aller: { present:["vais","vas","va","allons","allez","vont"],participle:"allé", futureStem:"ir",   imperfectStem:"all",  auxType:"etre",  infinitive:"aller" },
+  faire: { present:["fais","fais","fait","faisons","faites","font"], participle:"fait", futureStem:"fer", imperfectStem:"fais", auxType:"avoir", infinitive:"faire" }
+};
+var cgPRESENT_ENDINGS = { er:["e","es","e","ons","ez","ent"], ir:["is","is","it","issons","issez","issent"], re:["s","s","","ons","ez","ent"] };
+var cgIMPERFECT_STEM_SUFFIX = { er:"", ir:"iss", re:"" };
+var cgIMPERFECT_ENDINGS = ["ais","ais","ait","ions","iez","aient"];
+var cgFUTURE_STEM_SUFFIX = { er:"er", ir:"ir", re:"r" };
+var cgFUTURE_ENDINGS = ["ai","as","a","ons","ez","ont"];
+var cgPARTICIPLE_SUFFIX = { er:"é", ir:"i", re:"u" };
+var cgINFINITIVE_SUFFIX = { er:"er", ir:"ir", re:"re" };
+var cgAVOIR_PRESENT = cgIRREGULARS.avoir.present;
+var cgALLER_PRESENT = cgIRREGULARS.aller.present;
+var cgETRE_PRESENT = cgIRREGULARS.etre.present;
+
+var cgREG_ENGLISH = {
+  jouer:    { base:"play",   ing:"playing",   past:"played" },
+  regarder: { base:"watch",  ing:"watching",  past:"watched" },
+  finir:    { base:"finish", ing:"finishing", past:"finished" },
+  vendre:   { base:"sell",   ing:"selling",   past:"sold" }
+};
+var cgIRR_ENGLISH = {
+  etre:  { present:"I am", nearfuture:"I am going to be", perfect:"I was / I have been", simplefuture:"I will be", conditional:"I would be", imperfect:"I was being / I used to be" },
+  avoir: { present:"I have", nearfuture:"I am going to have", perfect:"I had / I have had", simplefuture:"I will have", conditional:"I would have", imperfect:"I was having / I used to have" },
+  aller: { present:"I go / I am going", nearfuture:"I am going to go", perfect:"I went / I have gone", simplefuture:"I will go", conditional:"I would go", imperfect:"I was going / I used to go" },
+  faire: { present:"I do / I make", nearfuture:"I am going to do / make", perfect:"I did / I have done", simplefuture:"I will do / make", conditional:"I would do / make", imperfect:"I was doing / I used to do" }
+};
+
+var cgROLE = {
+  pronoun:    { bg:"#FBF0DA", text:"#8A6416" },
+  aux:        { bg:"#EFE6F7", text:"#3E1963" },
+  infinitive: { bg:"#E7EEF7", text:"#2D4A73" },
+  participle: { bg:"#DCEBD0", text:"#45602E" },
+  stem:       { bg:"#E4F0EF", text:"#2A5A57", strong:"#3F7D7A" },
+  ending:     { bg:"#F7E7ED", text:"#7A2E45", strong:"#B24C6B" },
+  reflexive:  { bg:"#FBE0DC", text:"#8A3B22", strong:"#C1592E" },
+  verb:       { bg:"#F4F0F8", text:"#574A66", strong:"#574A66" }
+};
+
+var cgTENSES = [
+  { key:"present",      name:"Present",      fr:"Le Présent",        desc:"Describes what is happening now",         formulaType:"stem-ending",   cardBg:"#EFE6F7", cardText:"#3E1963", descText:"#6E637F", higherOnly:false },
+  { key:"nearfuture",   name:"Near Future",  fr:"Le Futur Proche",   desc:"Describes what is going to happen soon",  formulaType:"pronoun-aux-x", cardBg:"#F6E7C6", cardText:"#6B4A0E", descText:"#7A6A45", higherOnly:false },
+  { key:"perfect",      name:"Perfect",      fr:"Le Passé Composé",  desc:"Describes what has happened",             formulaType:"pronoun-aux-x", cardBg:"#E4EEDB", cardText:"#45602E", descText:"#5C7A45", higherOnly:false },
+  { key:"simplefuture", name:"Simple Future",fr:"Le Futur Simple",   desc:"Describes what will happen",               formulaType:"stem-ending",   cardBg:"#E2ECF6", cardText:"#2D4A73", descText:"#4F6B8A", higherOnly:true },
+  { key:"conditional",  name:"Conditional",  fr:"Le Conditionnel",   desc:"Describes what would happen",              formulaType:"stem-ending",   cardBg:"#F5E3EA", cardText:"#7A2E45", descText:"#8A5468", higherOnly:true },
+  { key:"imperfect",    name:"Imperfect",    fr:"L’Imparfait",       desc:"Describes what used to happen",            formulaType:"stem-ending",   cardBg:"#F7E6D8", cardText:"#8A4E1E", descText:"#9C6B3A", higherOnly:true }
+];
+function cgAvailableTenses(){ return cgTENSES.filter(function(t){ return !t.higherOnly || state.showHigher; }); }
+
+var cgTABS = [
+  { key:"er", label:"-ER" },
+  { key:"ir", label:"-IR" },
+  { key:"re", label:"-RE" },
+  { key:"irregular", label:"Irregular" },
+  { key:"reflexive", label:"Reflexive" }
+];
+var cgTAB_DEMO_VERB = { er:"jouer", ir:"finir", re:"vendre" };
+
+var cgREFLEXIVE_VERB = { stem:"douch", type:"er", infinitive:"doucher" };
+var cgREFLEXIVE_ENGLISH = {
+  present:"I shower", nearfuture:"I am going to shower", perfect:"I showered / I have showered",
+  simplefuture:"I will shower", conditional:"I would shower", imperfect:"I was showering / I used to shower"
+};
+var cgREFLEXIVE_PERFECT_ROWS = [
+  { label:"je", english:"I", text:"me suis douché(e)" },
+  { label:"tu", english:"you", text:"t’es douché(e)" },
+  { label:"il / elle", english:"he / she", dual:[ {pronoun:"il", text:"s’est douché"}, {pronoun:"elle", text:"s’est douchée"} ] },
+  { label:"nous", english:"we", text:"nous sommes douché(e)s" },
+  { label:"vous", english:"you", text:"vous êtes douché(e)(s)" },
+  { label:"ils / elles", english:"they", dual:[ {pronoun:"ils", text:"se sont douchés"}, {pronoun:"elles", text:"se sont douchées"} ] }
+];
+
+/* ---- engine ---- */
+function cgIsRegular(v){ return !!cgREGULARS[v]; }
+function cgVerbType(v){ return cgIsRegular(v) ? cgREGULARS[v].type : "irregular"; }
+function cgJePronoun(word){ return /^[aeiouhéèê]/i.test(word) ? "’" : " "; }
+function cgPronounLabel(idx, leadWord){ return idx===0 ? (cgJePronoun(leadWord)===" " ? "je" : "j’") : cgPRONOUNS[idx]; }
+
+function cgCaption(verbId, tenseKey){
+  if(cgIsRegular(verbId)){
+    var e = cgREG_ENGLISH[verbId];
+    switch(tenseKey){
+      case "present": return "I "+e.base+" / I am "+e.ing;
+      case "nearfuture": return "I am going to "+e.base;
+      case "perfect": return "I "+e.past+" / I have "+e.past;
+      case "simplefuture": return "I will "+e.base;
+      case "conditional": return "I would "+e.base;
+      case "imperfect": return "I was "+e.ing+" / I used to "+e.base;
+    }
+  }
+  return cgIRR_ENGLISH[verbId][tenseKey];
+}
+
+function cgStemEndingData(verbId, tenseKey){
+  if(tenseKey==="present"){
+    if(!cgIsRegular(verbId)) return { fallback:true, forms:cgIRREGULARS[verbId].present };
+    var r = cgREGULARS[verbId];
+    return { stem:r.stem, endings:cgPRESENT_ENDINGS[r.type] };
+  }
+  if(tenseKey==="simplefuture" || tenseKey==="conditional"){
+    var stem = cgIsRegular(verbId) ? cgREGULARS[verbId].stem+cgFUTURE_STEM_SUFFIX[cgREGULARS[verbId].type] : cgIRREGULARS[verbId].futureStem;
+    var endings = tenseKey==="simplefuture" ? cgFUTURE_ENDINGS : cgIMPERFECT_ENDINGS;
+    return { stem:stem, endings:endings };
+  }
+  if(tenseKey==="imperfect"){
+    var istem = cgIsRegular(verbId) ? cgREGULARS[verbId].stem+cgIMPERFECT_STEM_SUFFIX[cgREGULARS[verbId].type] : cgIRREGULARS[verbId].imperfectStem;
+    return { stem:istem, endings:cgIMPERFECT_ENDINGS };
+  }
+}
+function cgPronounAuxXData(verbId, tenseKey){
+  if(tenseKey==="nearfuture"){
+    var X = cgIsRegular(verbId) ? cgREGULARS[verbId].stem+cgINFINITIVE_SUFFIX[cgREGULARS[verbId].type] : cgIRREGULARS[verbId].infinitive;
+    return { auxForms:cgALLER_PRESENT, auxLabel:"aller", X:X, xLabel:"INFINITIVE", xRole:"infinitive" };
+  }
+  if(tenseKey==="perfect"){
+    var auxType = cgIsRegular(verbId) ? "avoir" : cgIRREGULARS[verbId].auxType;
+    var auxForms = auxType==="avoir" ? cgAVOIR_PRESENT : cgETRE_PRESENT;
+    var P = cgIsRegular(verbId) ? cgREGULARS[verbId].stem+cgPARTICIPLE_SUFFIX[cgREGULARS[verbId].type] : cgIRREGULARS[verbId].participle;
+    return { auxForms:auxForms, auxLabel: auxType==="avoir" ? "avoir" : "être", X:P, xLabel:"PAST PARTICIPLE", xRole:"participle" };
+  }
+}
+function cgRowsFor(verbId, tenseKey){
+  var tense = cgTENSES.filter(function(t){ return t.key===tenseKey; })[0];
+  var rows = [];
+  if(tense.formulaType==="stem-ending"){
+    var d = cgStemEndingData(verbId, tenseKey);
+    if(d.fallback){
+      for(var i=0;i<6;i++) rows.push({ fallback:true, full:d.forms[i], leadWord:d.forms[i] });
+      return { type:"stem-ending-fallback", rows:rows };
+    }
+    for(var j=0;j<6;j++) rows.push({ stem:d.stem, ending:d.endings[j], leadWord:d.stem });
+    return { type:"stem-ending", rows:rows };
+  } else {
+    var pd = cgPronounAuxXData(verbId, tenseKey);
+    for(var k=0;k<6;k++) rows.push({ aux:pd.auxForms[k], x:pd.X, leadWord:pd.auxForms[k] });
+    return { type:"pronoun-aux-x", auxLabel:pd.auxLabel, xLabel:pd.xLabel, xRole:pd.xRole, rows:rows };
+  }
+}
+function cgReflexiveVerbForm(tenseKey, i){
+  var v = cgREFLEXIVE_VERB;
+  if(tenseKey==="present") return v.stem+cgPRESENT_ENDINGS[v.type][i];
+  if(tenseKey==="imperfect") return v.stem+cgIMPERFECT_STEM_SUFFIX[v.type]+cgIMPERFECT_ENDINGS[i];
+  if(tenseKey==="simplefuture") return v.stem+cgFUTURE_STEM_SUFFIX[v.type]+cgFUTURE_ENDINGS[i];
+  if(tenseKey==="conditional") return v.stem+cgFUTURE_STEM_SUFFIX[v.type]+cgIMPERFECT_ENDINGS[i];
+}
+// cgReflexivePronounFor: same 6-row combined pronoun set this guide uses
+// everywhere else, but reflexivePronoun()/REFLEXIVE_PRONOUN above are keyed
+// by the app's 9-person set — "il" and "ils" both map to "se" there, same
+// as "elle"/"elles" do, so reusing them for a combined "il / elle" row is
+// safe: the elision check only depends on the following word, not which
+// alias of "se" was looked up.
+function cgReflexivePronounFor(i, nextWord){
+  var personKey = ["je","tu","il","nous","vous","ils"][i];
+  return reflexivePronoun(personKey, nextWord);
+}
+
+/* ---- state ---- */
+var cgState = { screen:"landing", personalizedVerb:null, currentTense:null, currentTab:"er", irregularVerb:"etre" };
+
+function renderConjGuide(){
+  titleEl.textContent = "Conjugation Guide";
+  cgState.screen = "landing";
+  cgState.personalizedVerb = null;
+  cgState.currentTense = null;
+  cgState.currentTab = "er";
+  cgState.irregularVerb = "etre";
+
+  var wrap = el('<div class="cg-screen"></div>');
+  app.appendChild(wrap);
+
+  function cgActiveVerbForTab(tab){
+    if(cgState.personalizedVerb) return cgState.personalizedVerb;
+    if(tab==="irregular") return cgState.irregularVerb;
+    if(tab==="reflexive") return "reflexive_doucher";
+    return cgTAB_DEMO_VERB[tab];
+  }
+
+  function cgChip(bg, color, text){
+    var s = el('<span class="cg-chiplet"></span>');
+    s.style.background = bg; s.style.color = color; s.textContent = text;
+    return s;
+  }
+  function cgBadgeEl(n){
+    var b = el('<div class="cg-badge"></div>');
+    b.textContent = n;
+    return b;
+  }
+  function cgFormulaChip(n, role, label, sublabel){
+    var wrap2 = el('<div class="cg-chip-wrap"></div>');
+    wrap2.appendChild(cgBadgeEl(n));
+    var box = el('<div class="cg-chip"></div>');
+    box.style.background = role.bg;
+    var lab = el('<div class="cg-chip-label"></div>');
+    lab.style.color = role.text; lab.textContent = label;
+    box.appendChild(lab);
+    if(sublabel){
+      var sub = el('<div class="cg-chip-sub"></div>');
+      sub.style.color = role.strong || role.text; sub.textContent = sublabel;
+      box.appendChild(sub);
+    }
+    wrap2.appendChild(box);
+    return wrap2;
+  }
+  function cgPlus(){ return el('<span class="cg-plus">+</span>'); }
+
+  /* ---- landing screen ---- */
+  function cgLandingBoxHtml(t){
+    var verbId = cgState.personalizedVerb || "jouer";
+    var r = cgRowsFor(verbId, t.key);
+    var row0 = r.rows[0];
+    var box = el('<button type="button" class="cg-box"></button>');
+    box.style.background = t.cardBg;
+    box.appendChild((function(){ var d=el('<div class="cg-box-title"></div>'); d.style.color=t.cardText; d.textContent=t.name; return d; })());
+    box.appendChild((function(){ var d=el('<div class="cg-box-desc"></div>'); d.style.color=t.descText; d.textContent=t.desc; return d; })());
+    var panel = el('<div class="cg-box-panel"></div>');
+    var exampleRow = el('<div class="cg-box-example"></div>');
+    if(r.type==="stem-ending-fallback"){
+      exampleRow.appendChild(cgChip(cgROLE.pronoun.bg, cgROLE.pronoun.text, cgPronounLabel(0, row0.leadWord)));
+      exampleRow.appendChild(cgChip("#F0EDF4", "#574A66", row0.full));
+    } else if(r.type==="stem-ending"){
+      exampleRow.appendChild(cgChip(cgROLE.pronoun.bg, cgROLE.pronoun.text, cgPronounLabel(0, row0.leadWord)));
+      var combo = el('<span></span>');
+      var s1 = el('<span></span>'); s1.style.background=cgROLE.stem.bg; s1.style.color=cgROLE.stem.strong; s1.style.fontWeight="700"; s1.style.padding="2px 0 2px 5px"; s1.style.borderRadius="5px 0 0 5px"; s1.textContent = row0.stem;
+      var s2 = el('<span></span>'); s2.style.background=cgROLE.ending.bg; s2.style.color=cgROLE.ending.strong; s2.style.fontWeight="700"; s2.style.padding="2px 5px 2px 0"; s2.style.borderRadius="0 5px 5px 0"; s2.textContent = row0.ending;
+      combo.appendChild(s1); combo.appendChild(s2);
+      exampleRow.appendChild(combo);
+    } else {
+      exampleRow.appendChild(cgChip(cgROLE.pronoun.bg, cgROLE.pronoun.text, cgPronounLabel(0, row0.leadWord)));
+      exampleRow.appendChild(cgChip(cgROLE.aux.bg, cgROLE.aux.text, row0.aux));
+      exampleRow.appendChild(cgChip(cgROLE[r.xRole].bg, cgROLE[r.xRole].text, row0.x));
+    }
+    panel.appendChild(exampleRow);
+    var enLine = el('<div class="cg-box-en"></div>'); enLine.textContent = cgCaption(verbId, t.key);
+    panel.appendChild(enLine);
+    box.appendChild(panel);
+    box.addEventListener("click", function(){ cgOpenTense(t.key); });
+    return box;
+  }
+
+  function cgRenderLanding(){
+    wrap.innerHTML = "";
+    var header = el('<div class="cg-header"></div>');
+    var row = el('<div class="cg-header-row"></div>');
+    var back = el(ARROW_BACK_HTML);
+    back.addEventListener("click", function(){ go("verbs"); });
+    row.appendChild(back);
+    row.appendChild(el('<h2 class="cg-header-title">Conjugation Guide</h2>'));
+    var closeBtn = el('<div class="cg-header-close">&times;</div>');
+    closeBtn.addEventListener("click", function(){ go("verbs"); });
+    row.appendChild(closeBtn);
+    header.appendChild(row);
+    var sub = el('<div class="cg-header-sub"></div>');
+    sub.textContent = cgState.personalizedVerb ? ("Showing "+cgState.personalizedVerb+" across every tense") : "Tap a tense to see how it’s built";
+    header.appendChild(sub);
+    wrap.appendChild(header);
+
+    wrap.appendChild(el('<div class="cg-section-label">CHOOSE A TENSE</div>'));
+    var grid = el('<div class="cg-grid"></div>');
+    cgAvailableTenses().forEach(function(t){ grid.appendChild(cgLandingBoxHtml(t)); });
+    wrap.appendChild(grid);
+
+    var searchWrap = el('<div class="cg-search-wrap"></div>');
+    if(cgState.personalizedVerb){
+      searchWrap.appendChild(el('<div class="cg-search-label">SHOWING EXAMPLES FOR</div>'));
+      var activeRow = el('<div class="cg-search-row cg-active"></div>');
+      activeRow.appendChild(el('<span class="cg-search-verb"></span>')).textContent = cgState.personalizedVerb;
+      var clearBtn = el('<div class="cg-search-clear">&times;</div>');
+      clearBtn.addEventListener("click", function(){ cgState.personalizedVerb = null; cgRenderLanding(); });
+      activeRow.appendChild(clearBtn);
+      searchWrap.appendChild(activeRow);
+    } else {
+      searchWrap.appendChild(el('<div class="cg-search-label">OR SEE THESE EXAMPLES FOR A DIFFERENT VERB</div>'));
+      var searchRow = el('<div class="cg-search-row"></div>');
+      var input = el('<input type="text" placeholder="e.g. regarder..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">');
+      var goBtn = el('<div class="cg-search-go">Go</div>');
+      function trySearch(){
+        var val = (input.value || "").trim().toLowerCase();
+        if(val==="regarder"){ cgState.personalizedVerb = "regarder"; cgRenderLanding(); }
+        else if(val===""){ /* no-op */ }
+        else { window.alert('Only "regarder" is wired up as a demo verb here — try that, or leave the box empty to keep jouer.'); }
+      }
+      goBtn.addEventListener("click", trySearch);
+      input.addEventListener("keydown", function(e){ if(e.key==="Enter") trySearch(); });
+      searchRow.appendChild(input);
+      searchRow.appendChild(goBtn);
+      searchWrap.appendChild(searchRow);
+      searchWrap.appendChild(el('<div class="cg-search-hint">Try &ldquo;regarder&rdquo; — the only other verb wired up in this demo.</div>'));
+    }
+    wrap.appendChild(searchWrap);
+    wrap.appendChild(el('<div class="cg-footer-note">Showing tenses for your '+(state.showHigher?'Higher':'Foundation')+' tier setting</div>'));
+  }
+
+  /* ---- tense detail screen ---- */
+  function cgRenderTabs(container){
+    container.innerHTML = "";
+    var personalized = cgState.personalizedVerb;
+    var forcedType = personalized ? cgVerbType(personalized) : null;
+    cgTABS.forEach(function(t){
+      var active = cgState.currentTab===t.key;
+      var disabled = personalized && t.key!==forcedType;
+      var btn = el('<button type="button" class="cg-tab"></button>');
+      btn.textContent = t.label;
+      if(active) btn.classList.add("cg-active");
+      else if(disabled) btn.classList.add("cg-disabled");
+      if(!disabled){ btn.addEventListener("click", function(){ cgState.currentTab = t.key; cgRenderTenseBody(); }); }
+      container.appendChild(btn);
+    });
+  }
+
+  function cgRenderFormula(container, tense, verbId){
+    container.innerHTML = "";
+    if(verbId==="reflexive_doucher"){ container.appendChild(cgReflexiveFormula(tense)); return; }
+    var r = cgRowsFor(verbId, tense.key);
+    var row0 = r.rows[0];
+    if(r.type==="stem-ending-fallback"){
+      var warn = el('<div class="cg-warning"></div>');
+      warn.appendChild(el('<div class="cg-warning-badge">!</div>'));
+      var t2 = el('<div class="cg-warning-text"></div>');
+      t2.innerHTML = "<b>"+esc(verbId)+"</b> is irregular in the present tense — it doesn’t follow a stem + ending pattern here. Learn these forms by heart.";
+      warn.appendChild(t2);
+      container.appendChild(warn);
+      return;
+    }
+    var fw = el('<div class="cg-formula-wrap"></div>');
+    var frow = el('<div class="cg-formula-row"></div>');
+    if(r.type==="stem-ending"){
+      frow.appendChild(cgFormulaChip(1, cgROLE.pronoun, "PRONOUN"));
+      frow.appendChild(cgPlus());
+      frow.appendChild(cgFormulaChip(2, cgROLE.stem, "STEM"));
+      frow.appendChild(cgPlus());
+      frow.appendChild(cgFormulaChip(3, cgROLE.ending, "ENDING"));
+      fw.appendChild(frow);
+      var ex = el('<div class="cg-example-line"></div>');
+      ex.innerHTML = "e.g. "+esc(verbId)+" → "+esc(cgPronounLabel(0,row0.leadWord))+" "+
+        '<b style="color:'+cgROLE.stem.strong+'">'+esc(row0.stem)+'</b>'+
+        '<b style="color:'+cgROLE.ending.strong+'">'+esc(row0.ending)+'</b>'+
+        " ("+esc(cgCaption(verbId, tense.key))+")";
+      fw.appendChild(ex);
+    } else {
+      frow.appendChild(cgFormulaChip(1, cgROLE.pronoun, "PRONOUN"));
+      frow.appendChild(cgPlus());
+      frow.appendChild(cgFormulaChip(2, cgROLE.aux, "AUXILIARY VERB", r.auxLabel));
+      frow.appendChild(cgPlus());
+      frow.appendChild(cgFormulaChip(3, cgROLE[r.xRole], r.xLabel));
+      fw.appendChild(frow);
+      var ex2 = el('<div class="cg-example-line"></div>');
+      ex2.textContent = "e.g. "+verbId+" → "+cgPronounLabel(0,row0.leadWord)+" "+row0.aux+" "+row0.x+" ("+cgCaption(verbId, tense.key)+")";
+      fw.appendChild(ex2);
+    }
+    container.appendChild(fw);
+  }
+
+  function cgReflexiveFormula(tense){
+    var fw = el('<div class="cg-formula-wrap"></div>');
+    var frow = el('<div class="cg-formula-row"></div>');
+    var key = tense.key;
+    if(key==="perfect"){
+      frow.appendChild(cgFormulaChip(1, cgROLE.pronoun, "PRONOUN"));
+      frow.appendChild(cgPlus());
+      frow.appendChild(cgFormulaChip(2, cgROLE.reflexive, "REFLEXIVE PRONOUN"));
+      frow.appendChild(cgPlus());
+      frow.appendChild(cgFormulaChip(3, cgROLE.aux, "AUXILIARY VERB", "être — always"));
+      frow.appendChild(cgPlus());
+      frow.appendChild(cgFormulaChip(4, cgROLE.participle, "PAST PARTICIPLE", "agrees with subject"));
+      fw.appendChild(frow);
+      var ex = el('<div class="cg-example-line"></div>');
+      ex.innerHTML = 'e.g. se doucher → il <b style="color:'+cgROLE.reflexive.strong+'">s’</b>est <b>douché</b> (he showered)';
+      fw.appendChild(ex);
+      return fw;
+    }
+    if(key==="nearfuture"){
+      frow.appendChild(cgFormulaChip(1, cgROLE.pronoun, "PRONOUN"));
+      frow.appendChild(cgPlus());
+      frow.appendChild(cgFormulaChip(2, cgROLE.aux, "AUXILIARY VERB", "aller"));
+      frow.appendChild(cgPlus());
+      frow.appendChild(cgFormulaChip(3, cgROLE.reflexive, "REFLEXIVE PRONOUN"));
+      frow.appendChild(cgPlus());
+      frow.appendChild(cgFormulaChip(4, cgROLE.infinitive, "INFINITIVE"));
+      fw.appendChild(frow);
+      var ex2 = el('<div class="cg-example-line"></div>');
+      ex2.innerHTML = 'e.g. se doucher → je vais <b style="color:'+cgROLE.reflexive.strong+'">me</b> doucher (I am going to shower)';
+      fw.appendChild(ex2);
+      return fw;
+    }
+    var form0 = cgReflexiveVerbForm(key, 0);
+    frow.appendChild(cgFormulaChip(1, cgROLE.pronoun, "PRONOUN"));
+    frow.appendChild(cgPlus());
+    frow.appendChild(cgFormulaChip(2, cgROLE.reflexive, "REFLEXIVE PRONOUN"));
+    frow.appendChild(cgPlus());
+    frow.appendChild(cgFormulaChip(3, cgROLE.verb, "VERB"));
+    fw.appendChild(frow);
+    var ex3 = el('<div class="cg-example-line"></div>');
+    ex3.innerHTML = 'e.g. se doucher → je <b style="color:'+cgROLE.reflexive.strong+'">me</b> <b>'+esc(form0)+'</b> ('+esc(cgREFLEXIVE_ENGLISH[key])+')';
+    fw.appendChild(ex3);
+    return fw;
+  }
+
+  function cgTableHeadCell(bg, color, label, cols){
+    var d = el('<div></div>'); d.style.background=bg; d.style.color=color; d.textContent=label; return d;
+  }
+
+  function cgRenderTable(container, tense, verbId){
+    container.innerHTML = "";
+    if(verbId==="reflexive_doucher"){ container.appendChild(cgReflexiveTable(tense)); return; }
+    var r = cgRowsFor(verbId, tense.key);
+    var tw = el('<div class="cg-table-wrap"></div>');
+    var head, cols;
+    if(r.type==="stem-ending-fallback"){
+      cols = "1fr 1.5fr";
+      head = el('<div class="cg-table-head"></div>'); head.style.gridTemplateColumns = cols;
+      head.appendChild(cgTableHeadCell(cgROLE.pronoun.bg, cgROLE.pronoun.text, "PRONOUN"));
+      head.appendChild(cgTableHeadCell("#F4F0F8", "#574A66", "FORM"));
+      tw.appendChild(head);
+      r.rows.forEach(function(row, i){
+        var rw = el('<div class="cg-table-row"></div>'); rw.style.gridTemplateColumns = cols;
+        var p = el('<div class="cg-table-pronoun"></div>'); p.innerHTML = esc(cgPronounLabel(i,row.leadWord))+' <span>('+esc(cgPRONOUN_ENGLISH[i])+')</span>';
+        var f = el('<div class="cg-table-form"></div>'); f.textContent = row.full;
+        rw.appendChild(p); rw.appendChild(f);
+        tw.appendChild(rw);
+      });
+    } else if(r.type==="stem-ending"){
+      cols = "1.3fr 1fr 0.8fr";
+      head = el('<div class="cg-table-head"></div>'); head.style.gridTemplateColumns = cols;
+      var hs = cgTableHeadCell(cgROLE.pronoun.bg, cgROLE.pronoun.text, "PRONOUN"); head.appendChild(hs);
+      var hst = cgTableHeadCell(cgROLE.stem.bg, cgROLE.stem.text, "STEM"); hst.style.textAlign="right"; hst.style.padding="8px 4px 8px 10px"; head.appendChild(hst);
+      var hen = cgTableHeadCell(cgROLE.ending.bg, cgROLE.ending.text, "ENDING"); hen.style.textAlign="left"; hen.style.padding="8px 10px 8px 4px"; head.appendChild(hen);
+      tw.appendChild(head);
+      r.rows.forEach(function(row, i){
+        var rw = el('<div class="cg-table-row"></div>'); rw.style.gridTemplateColumns = cols;
+        var p = el('<div class="cg-table-pronoun"></div>'); p.innerHTML = esc(cgPronounLabel(i,row.leadWord))+' <span>('+esc(cgPRONOUN_ENGLISH[i])+')</span>';
+        var st = el('<div class="cg-table-form"></div>'); st.style.color=cgROLE.stem.strong; st.style.textAlign="right"; st.style.padding="0 4px 0 10px"; st.textContent = row.stem;
+        var en = el('<div class="cg-table-form"></div>'); en.style.color=cgROLE.ending.strong; en.style.textAlign="left"; en.style.padding="0 10px 0 4px"; en.textContent = row.ending;
+        rw.appendChild(p); rw.appendChild(st); rw.appendChild(en);
+        tw.appendChild(rw);
+      });
+    } else {
+      cols = "1fr 1.3fr 1.1fr";
+      head = el('<div class="cg-table-head"></div>'); head.style.gridTemplateColumns = cols;
+      head.appendChild(cgTableHeadCell(cgROLE.pronoun.bg, cgROLE.pronoun.text, "PRONOUN"));
+      head.appendChild(cgTableHeadCell(cgROLE.aux.bg, cgROLE.aux.text, "AUXILIARY"));
+      head.appendChild(cgTableHeadCell(cgROLE[r.xRole].bg, cgROLE[r.xRole].text, r.xLabel));
+      tw.appendChild(head);
+      r.rows.forEach(function(row, i){
+        var rw = el('<div class="cg-table-row"></div>'); rw.style.gridTemplateColumns = cols;
+        var p = el('<div class="cg-table-pronoun"></div>'); p.innerHTML = esc(cgPronounLabel(i,row.leadWord))+' <span>('+esc(cgPRONOUN_ENGLISH[i])+')</span>';
+        var a = el('<div class="cg-table-form"></div>'); a.textContent = row.aux;
+        var x = el('<div></div>'); x.style.fontSize="15px"; x.style.color="#6E637F"; x.textContent = row.x;
+        rw.appendChild(p); rw.appendChild(a); rw.appendChild(x);
+        tw.appendChild(rw);
+      });
+    }
+    container.appendChild(tw);
+    var note = el('<div class="cg-table-note">Same colours mean the same grammatical role on every tense page.</div>');
+    tw.appendChild(note);
+  }
+
+  function cgReflexiveTable(tense){
+    var tw = el('<div class="cg-table-wrap"></div>');
+    var key = tense.key;
+    if(key==="perfect"){
+      var cols = "1fr 1.6fr";
+      var head = el('<div class="cg-table-head"></div>'); head.style.gridTemplateColumns = cols;
+      head.appendChild(cgTableHeadCell(cgROLE.pronoun.bg, cgROLE.pronoun.text, "PRONOUN"));
+      head.appendChild(cgTableHeadCell(cgROLE.verb.bg, cgROLE.verb.text, "WHOLE FORM"));
+      tw.appendChild(head);
+      cgREFLEXIVE_PERFECT_ROWS.forEach(function(row){
+        var rw = el('<div class="cg-table-row"></div>'); rw.style.gridTemplateColumns = cols;
+        var p = el('<div class="cg-table-pronoun"></div>'); p.innerHTML = esc(row.label)+' <span>('+esc(row.english)+')</span>';
+        rw.appendChild(p);
+        if(row.dual){
+          var d = el('<div class="cg-dual-row"></div>');
+          row.dual.forEach(function(dd){
+            var line = el('<div></div>'); line.innerHTML = '<b>'+esc(dd.pronoun)+':</b> <b style="color:#221733;">'+esc(dd.text)+'</b>';
+            d.appendChild(line);
+          });
+          rw.appendChild(d);
+        } else {
+          var f = el('<div class="cg-table-form"></div>'); f.textContent = row.text;
+          rw.appendChild(f);
+        }
+        tw.appendChild(rw);
+      });
+      var note = el('<div class="cg-table-note">The past participle agrees with the subject — that’s why <i>il</i> and <i>elle</i> look different here.</div>');
+      tw.appendChild(note);
+      return tw;
+    }
+    var cols2 = "1.3fr 0.8fr 1.2fr";
+    var head2 = el('<div class="cg-table-head"></div>'); head2.style.gridTemplateColumns = cols2;
+    head2.appendChild(cgTableHeadCell(cgROLE.pronoun.bg, cgROLE.pronoun.text, "PRONOUN"));
+    head2.appendChild(cgTableHeadCell(cgROLE.reflexive.bg, cgROLE.reflexive.text, "REFLEXIVE"));
+    head2.appendChild(cgTableHeadCell(cgROLE.verb.bg, cgROLE.verb.text, "VERB"));
+    tw.appendChild(head2);
+    for(var i=0;i<6;i++){
+      var verbForm = cgReflexiveVerbForm(key, i);
+      var refPron = cgReflexivePronounFor(i, verbForm);
+      var rw2 = el('<div class="cg-table-row"></div>'); rw2.style.gridTemplateColumns = cols2;
+      var p2 = el('<div class="cg-table-pronoun"></div>'); p2.innerHTML = esc(cgPRONOUNS[i])+' <span>('+esc(cgPRONOUN_ENGLISH[i])+')</span>';
+      var rf = el('<div class="cg-table-form"></div>'); rf.style.color = cgROLE.reflexive.strong; rf.textContent = refPron;
+      var vf = el('<div class="cg-table-form"></div>'); vf.textContent = verbForm;
+      rw2.appendChild(p2); rw2.appendChild(rf); rw2.appendChild(vf);
+      tw.appendChild(rw2);
+    }
+    return tw;
+  }
+
+  function cgOpenTense(key){
+    cgState.screen = "tense";
+    cgState.currentTense = key;
+    cgState.currentTab = cgState.personalizedVerb ? cgVerbType(cgState.personalizedVerb) : "er";
+    cgRenderTenseScreen();
+  }
+
+  function cgRenderTenseBody(){
+    var tense = cgTENSES.filter(function(t){ return t.key===cgState.currentTense; })[0];
+    var verbId = cgActiveVerbForTab(cgState.currentTab);
+    var tabsRow = wrap.querySelector(".cg-tabs-row");
+    if(tabsRow) cgRenderTabs(tabsRow);
+    var dimmedNote = wrap.querySelector(".cg-dimmed-note-slot");
+    if(dimmedNote){
+      dimmedNote.innerHTML = "";
+      if(cgState.personalizedVerb){
+        var t3 = cgTABS.filter(function(t){ return t.key===cgVerbType(cgState.personalizedVerb); })[0];
+        var note = el('<div class="cg-dimmed-note"></div>');
+        note.innerHTML = "Only <b>"+esc(t3?t3.label:"")+"</b> applies to <i>"+esc(cgState.personalizedVerb)+"</i> — the other patterns are dimmed.";
+        dimmedNote.appendChild(note);
+      }
+    }
+    var irregRow = wrap.querySelector(".cg-irregular-slot");
+    if(irregRow){
+      irregRow.innerHTML = "";
+      if(cgState.currentTab==="irregular" && !cgState.personalizedVerb){
+        var chips = el('<div class="cg-irregular-chips"></div>');
+        ["etre","avoir","aller","faire"].forEach(function(v){
+          var labels = {etre:"être", avoir:"avoir", aller:"aller", faire:"faire"};
+          var c = el('<button type="button" class="cg-irregular-chip"></button>');
+          c.textContent = labels[v];
+          if(cgState.irregularVerb===v) c.classList.add("cg-active");
+          c.addEventListener("click", function(){ cgState.irregularVerb = v; cgRenderTenseBody(); });
+          chips.appendChild(c);
+        });
+        irregRow.appendChild(chips);
+      }
+    }
+    var formulaSlot = wrap.querySelector(".cg-formula-slot");
+    if(formulaSlot) cgRenderFormula(formulaSlot, tense, verbId);
+    var tableSlot = wrap.querySelector(".cg-table-slot");
+    if(tableSlot) cgRenderTable(tableSlot, tense, verbId);
+  }
+
+  function cgRenderTenseScreen(){
+    wrap.innerHTML = "";
+    var tense = cgTENSES.filter(function(t){ return t.key===cgState.currentTense; })[0];
+    var header = el('<div class="cg-header"></div>');
+    var row = el('<div class="cg-header-row"></div>');
+    var back = el(ARROW_BACK_HTML);
+    back.addEventListener("click", function(){ cgState.screen="landing"; cgRenderLanding(); });
+    row.appendChild(back);
+    row.appendChild(el('<h2 class="cg-header-title">'+esc(tense.name)+' — '+esc(tense.fr)+'</h2>'));
+    header.appendChild(row);
+    wrap.appendChild(header);
+
+    var tabsRow = el('<div class="cg-tabs-row"></div>');
+    wrap.appendChild(tabsRow);
+    wrap.appendChild(el('<div class="cg-dimmed-note-slot"></div>'));
+    wrap.appendChild(el('<div class="cg-irregular-slot"></div>'));
+    wrap.appendChild(el('<div class="cg-formula-slot"></div>'));
+    wrap.appendChild(el('<div class="cg-table-slot"></div>'));
+
+    cgRenderTenseBody();
+  }
+
+  cgRenderLanding();
+}
+
 
 function catLabel(cat){
   var map = {Noun:"Nouns",Pronoun:"Pronouns",Determiner:"Determiners",Adjective:"Adjectives",Verb:"Verbs",
