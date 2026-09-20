@@ -616,6 +616,7 @@
   .cg-search-label{color:#8A7F98; font-size:12px; font-weight:700; letter-spacing:.06em; margin-bottom:8px;}
   .cg-search-row{border:1.5px solid #E4DAF0; border-radius:12px; padding:11px 14px; display:flex; align-items:center; gap:8px; background:#fff;}
   .cg-search-row.cg-active{border-color:#3E1963;}
+  .cg-search-results{margin-top:10px;}
   .cg-search-row input{border:none; outline:none; background:transparent; font-size:var(--fs-text); font-family:inherit; color:#221733; flex-grow:1; min-width:0;}
   .cg-search-go{font-size:12px; font-weight:700; color:#3E1963; cursor:pointer; flex-shrink:0;}
   .cg-search-verb{color:#221733; font-size:var(--fs-text); font-weight:600; flex-grow:1;}
@@ -30579,6 +30580,9 @@ function buildVerbSearchTokens(v){
   return toks.filter(Boolean).map(normText);
 }
 VERBS.forEach(function(v){ v.searchTokens = buildVerbSearchTokens(v); });
+var VERBS_BY_ID = {};
+VERBS.forEach(function(v){ VERBS_BY_ID[v.id] = v; });
+function cgFindVerb(id){ return VERBS_BY_ID[id]; }
 
 var VERB_INFO_HTML =
   '<h3>Verb Conjugations</h3>'+
@@ -30879,41 +30883,29 @@ function renderVerbs(){
 var cgPRONOUNS = ["je","tu","il / elle","nous","vous","ils / elles"];
 var cgPRONOUN_ENGLISH = ["I","you","he / she","we","you","they"];
 
-var cgREGULARS = {
-  jouer:    { type:"er", stem:"jou" },
-  regarder: { type:"er", stem:"regard" },
-  finir:    { type:"ir", stem:"fin" },
-  vendre:   { type:"re", stem:"vend" }
-};
-var cgIRREGULARS = {
-  etre:  { present:["suis","es","est","sommes","êtes","sont"], participle:"été",  futureStem:"ser",  imperfectStem:"ét",   auxType:"avoir", infinitive:"être" },
-  avoir: { present:["ai","as","a","avons","avez","ont"],       participle:"eu",   futureStem:"aur",  imperfectStem:"av",   auxType:"avoir", infinitive:"avoir" },
-  aller: { present:["vais","vas","va","allons","allez","vont"],participle:"allé", futureStem:"ir",   imperfectStem:"all",  auxType:"etre",  infinitive:"aller" },
-  faire: { present:["fais","fais","fait","faisons","faites","font"], participle:"fait", futureStem:"fer", imperfectStem:"fais", auxType:"avoir", infinitive:"faire" }
-};
+// Engine below is data-driven off the real VERBS array (337 verbs, same
+// dataset the Verbs page's search/detail view uses) rather than a fixed
+// demo table — see cgDetectRegularPresent/cgStemEndingData/
+// cgPronounAuxXData. cgPRESENT_ENDINGS/cgIMPERFECT_ENDINGS/cgFUTURE_ENDINGS
+// are still needed as the fixed ending sets every regular (or
+// regular-enough-to-decompose) verb's formula is built from.
 var cgPRESENT_ENDINGS = { er:["e","es","e","ons","ez","ent"], ir:["is","is","it","issons","issez","issent"], re:["s","s","","ons","ez","ent"] };
-var cgIMPERFECT_STEM_SUFFIX = { er:"", ir:"iss", re:"" };
+var cgIMPERFECT_STEM_SUFFIX = { er:"", ir:"iss", re:"" }; // only used by the fixed "se doucher" reflexive demo now — see cgReflexiveVerbForm
 var cgIMPERFECT_ENDINGS = ["ais","ais","ait","ions","iez","aient"];
-var cgFUTURE_STEM_SUFFIX = { er:"er", ir:"ir", re:"r" };
+var cgFUTURE_STEM_SUFFIX = { er:"er", ir:"ir", re:"r" }; // ditto
 var cgFUTURE_ENDINGS = ["ai","as","a","ons","ez","ont"];
-var cgPARTICIPLE_SUFFIX = { er:"é", ir:"i", re:"u" };
-var cgINFINITIVE_SUFFIX = { er:"er", ir:"ir", re:"re" };
-var cgAVOIR_PRESENT = cgIRREGULARS.avoir.present;
-var cgALLER_PRESENT = cgIRREGULARS.aller.present;
-var cgETRE_PRESENT = cgIRREGULARS.etre.present;
-
-var cgREG_ENGLISH = {
-  jouer:    { base:"play",   ing:"playing",   past:"played" },
-  regarder: { base:"watch",  ing:"watching",  past:"watched" },
-  finir:    { base:"finish", ing:"finishing", past:"finished" },
-  vendre:   { base:"sell",   ing:"selling",   past:"sold" }
-};
-var cgIRR_ENGLISH = {
-  etre:  { present:"I am", nearfuture:"I am going to be", perfect:"I was / I have been", simplefuture:"I will be", conditional:"I would be", imperfect:"I was being / I used to be" },
-  avoir: { present:"I have", nearfuture:"I am going to have", perfect:"I had / I have had", simplefuture:"I will have", conditional:"I would have", imperfect:"I was having / I used to have" },
-  aller: { present:"I go / I am going", nearfuture:"I am going to go", perfect:"I went / I have gone", simplefuture:"I will go", conditional:"I would go", imperfect:"I was going / I used to go" },
-  faire: { present:"I do / I make", nearfuture:"I am going to do / make", perfect:"I did / I have done", simplefuture:"I will do / make", conditional:"I would do / make", imperfect:"I was doing / I used to do" }
-};
+// The six-row simplification this guide uses everywhere (je/tu/il/nous/
+// vous/ils, dropping elle/on/elles as duplicates of il/nous.../ils for
+// teaching purposes) — same order as cgPRONOUNS.
+var cgPRESENT_CHECK_PERSONS = ["je","tu","il","nous","vous","ils"];
+function cgSixFormsFromPersonsObj(obj){
+  return cgPRESENT_CHECK_PERSONS.map(function(p){ return obj[p]; });
+}
+// Bridges this guide's tense keys (lowercase, e.g. "nearfuture") to the
+// Verbs page's own engine's tense keys (englishGloss/frenchBareForm use
+// "nearFuture"/"futureSimple") so both screens can share one set of
+// helper functions instead of two parallel English-caption tables.
+var cgENGINE_TENSE_KEY = { present:"present", nearfuture:"nearFuture", perfect:"perfect", simplefuture:"futureSimple", conditional:"conditional", imperfect:"imperfect" };
 
 var cgROLE = {
   pronoun:    { bg:"#FBF0DA", text:"#8A6416" },
@@ -30960,68 +30952,112 @@ var cgREFLEXIVE_PERFECT_ROWS = [
 ];
 
 /* ---- engine ---- */
-function cgIsRegular(v){ return !!cgREGULARS[v]; }
-function cgVerbType(v){ return cgIsRegular(v) ? cgREGULARS[v].type : "irregular"; }
+// A verb is treated as "regular" (for the present tense, which is the only
+// tense where irregularity actually breaks a stem+ending pattern — see
+// cgStemEndingData) when its real present-tense forms exactly match the
+// mechanical stem+ending rule for its infinitive's ending. This is checked
+// against the verb's actual data rather than a fixed list, so it works for
+// any of the 337 verbs, not just a hand-picked few — and a genuinely
+// irregular verb (or a coincidence-prone guess, e.g. treating an "-oir"
+// verb as "-ir") simply fails the check and falls back to real forms below.
+function cgDetectRegularPresent(v){
+  if(!v || v.reflexive) return null;
+  var base = v.bareInfinitive || v.infinitive;
+  var type = /er$/.test(base) ? "er" : /ir$/.test(base) ? "ir" : /re$/.test(base) ? "re" : null;
+  if(!type) return null;
+  var stem = base.slice(0, base.length-2);
+  var endings = cgPRESENT_ENDINGS[type];
+  for(var i=0;i<cgPRESENT_CHECK_PERSONS.length;i++){
+    if(v.present[cgPRESENT_CHECK_PERSONS[i]] !== stem+endings[i]) return null;
+  }
+  return { type:type, stem:stem };
+}
+function cgVerbType(id){
+  var v = cgFindVerb(id);
+  if(!v) return "irregular";
+  if(v.reflexive) return "reflexive";
+  var reg = cgDetectRegularPresent(v);
+  return reg ? reg.type : "irregular";
+}
+function cgAuxTypeFor(v){
+  var firstWord = ((v.perfect && v.perfect.je) || "").split(" ")[0];
+  return firstWord==="ai" ? "avoir" : "etre";
+}
 function cgJePronoun(word){ return /^[aeiouhéèê]/i.test(word) ? "’" : " "; }
 function cgPronounLabel(idx, leadWord){ return idx===0 ? (cgJePronoun(leadWord)===" " ? "je" : "j’") : cgPRONOUNS[idx]; }
 
 function cgCaption(verbId, tenseKey){
-  if(cgIsRegular(verbId)){
-    var e = cgREG_ENGLISH[verbId];
-    switch(tenseKey){
-      case "present": return "I "+e.base+" / I am "+e.ing;
-      case "nearfuture": return "I am going to "+e.base;
-      case "perfect": return "I "+e.past+" / I have "+e.past;
-      case "simplefuture": return "I will "+e.base;
-      case "conditional": return "I would "+e.base;
-      case "imperfect": return "I was "+e.ing+" / I used to "+e.base;
-    }
-  }
-  return cgIRR_ENGLISH[verbId][tenseKey];
+  var v = cgFindVerb(verbId);
+  if(!v) return "";
+  return englishGloss(v, cgENGINE_TENSE_KEY[tenseKey], "je");
 }
 
-function cgStemEndingData(verbId, tenseKey){
+function cgStemEndingData(v, tenseKey){
   if(tenseKey==="present"){
-    if(!cgIsRegular(verbId)) return { fallback:true, forms:cgIRREGULARS[verbId].present };
-    var r = cgREGULARS[verbId];
-    return { stem:r.stem, endings:cgPRESENT_ENDINGS[r.type] };
+    var reg = cgDetectRegularPresent(v);
+    if(!reg) return { fallback:true, forms:cgSixFormsFromPersonsObj(v.present), reason:"irregular" };
+    return { stem:reg.stem, endings:cgPRESENT_ENDINGS[reg.type] };
   }
+  // Imperfect/simple future/conditional endings are the same for every
+  // French verb without exception — only the stem ever varies, and it's
+  // always recoverable straight from the verb's own real data: the
+  // imperfect "nous" form always ends "-ions", and the future "je" form
+  // always ends "-ai", for every verb including the most irregular ones
+  // (être → "ét-"/"ser-", aller → "all-"/"ir-", etc.) So unlike present
+  // tense, there's no regular/irregular branch needed here at all.
   if(tenseKey==="simplefuture" || tenseKey==="conditional"){
-    var stem = cgIsRegular(verbId) ? cgREGULARS[verbId].stem+cgFUTURE_STEM_SUFFIX[cgREGULARS[verbId].type] : cgIRREGULARS[verbId].futureStem;
-    var endings = tenseKey==="simplefuture" ? cgFUTURE_ENDINGS : cgIMPERFECT_ENDINGS;
-    return { stem:stem, endings:endings };
+    var stem = v.futureSimple.je.slice(0, -2);
+    return { stem:stem, endings: tenseKey==="simplefuture" ? cgFUTURE_ENDINGS : cgIMPERFECT_ENDINGS };
   }
   if(tenseKey==="imperfect"){
-    var istem = cgIsRegular(verbId) ? cgREGULARS[verbId].stem+cgIMPERFECT_STEM_SUFFIX[cgREGULARS[verbId].type] : cgIRREGULARS[verbId].imperfectStem;
-    return { stem:istem, endings:cgIMPERFECT_ENDINGS };
+    return { stem: v.imperfect.nous.slice(0, -4), endings:cgIMPERFECT_ENDINGS };
   }
 }
-function cgPronounAuxXData(verbId, tenseKey){
+function cgPronounAuxXData(v, tenseKey){
   if(tenseKey==="nearfuture"){
-    var X = cgIsRegular(verbId) ? cgREGULARS[verbId].stem+cgINFINITIVE_SUFFIX[cgREGULARS[verbId].type] : cgIRREGULARS[verbId].infinitive;
-    return { auxForms:cgALLER_PRESENT, auxLabel:"aller", X:X, xLabel:"INFINITIVE", xRole:"infinitive" };
+    var allerV = cgFindVerb("aller");
+    return { auxForms:cgSixFormsFromPersonsObj(allerV.present), auxLabel:"aller", X:(v.bareInfinitive||v.infinitive), xLabel:"INFINITIVE", xRole:"infinitive" };
   }
   if(tenseKey==="perfect"){
-    var auxType = cgIsRegular(verbId) ? "avoir" : cgIRREGULARS[verbId].auxType;
-    var auxForms = auxType==="avoir" ? cgAVOIR_PRESENT : cgETRE_PRESENT;
-    var P = cgIsRegular(verbId) ? cgREGULARS[verbId].stem+cgPARTICIPLE_SUFFIX[cgREGULARS[verbId].type] : cgIRREGULARS[verbId].participle;
-    return { auxForms:auxForms, auxLabel: auxType==="avoir" ? "avoir" : "être", X:P, xLabel:"PAST PARTICIPLE", xRole:"participle" };
+    var auxType = cgAuxTypeFor(v);
+    var auxV = cgFindVerb(auxType==="avoir" ? "avoir" : "etre");
+    return { auxForms:cgSixFormsFromPersonsObj(auxV.present), auxLabel: auxType==="avoir" ? "avoir" : "être", X:v.pastParticiple, xLabel:"PAST PARTICIPLE", xRole:"participle" };
   }
 }
 function cgRowsFor(verbId, tenseKey){
   var tense = cgTENSES.filter(function(t){ return t.key===tenseKey; })[0];
-  var rows = [];
-  if(tense.formulaType==="stem-ending"){
-    var d = cgStemEndingData(verbId, tenseKey);
-    if(d.fallback){
-      for(var i=0;i<6;i++) rows.push({ fallback:true, full:d.forms[i], leadWord:d.forms[i] });
-      return { type:"stem-ending-fallback", rows:rows };
+  var v = cgFindVerb(verbId);
+  var rows = [], i;
+  if(!v){
+    for(i=0;i<6;i++) rows.push({ fallback:true, full:"?", leadWord:"?" });
+    return { type:"stem-ending-fallback", reason:"irregular", rows:rows };
+  }
+  if(v.reflexive){
+    // None of the three formula layouts below (stem+ending, or
+    // pronoun+aux+X) have a chip for the reflexive pronoun that's baked
+    // into this verb's stored forms (e.g. "nous relaxions", "me suis
+    // relaxé") — decomposing them would silently drop it and show
+    // something wrong. Show the real, correct full form for every tense
+    // instead, same honest treatment a genuinely irregular present tense
+    // already got below, just applied across all six tenses.
+    var engineKey = cgENGINE_TENSE_KEY[tenseKey];
+    for(i=0;i<6;i++){
+      var full = frenchBareForm(v, engineKey, cgPRESENT_CHECK_PERSONS[i]);
+      rows.push({ fallback:true, full:full, leadWord:full });
     }
-    for(var j=0;j<6;j++) rows.push({ stem:d.stem, ending:d.endings[j], leadWord:d.stem });
+    return { type:"stem-ending-fallback", reason:"reflexive", rows:rows };
+  }
+  if(tense.formulaType==="stem-ending"){
+    var d = cgStemEndingData(v, tenseKey);
+    if(d.fallback){
+      for(i=0;i<6;i++) rows.push({ fallback:true, full:d.forms[i], leadWord:d.forms[i] });
+      return { type:"stem-ending-fallback", reason:d.reason, rows:rows };
+    }
+    for(i=0;i<6;i++) rows.push({ stem:d.stem, ending:d.endings[i], leadWord:d.stem });
     return { type:"stem-ending", rows:rows };
   } else {
-    var pd = cgPronounAuxXData(verbId, tenseKey);
-    for(var k=0;k<6;k++) rows.push({ aux:pd.auxForms[k], x:pd.X, leadWord:pd.auxForms[k] });
+    var pd = cgPronounAuxXData(v, tenseKey);
+    for(i=0;i<6;i++) rows.push({ aux:pd.auxForms[i], x:pd.X, leadWord:pd.auxForms[i] });
     return { type:"pronoun-aux-x", auxLabel:pd.auxLabel, xLabel:pd.xLabel, xRole:pd.xRole, rows:rows };
   }
 }
@@ -31138,8 +31174,9 @@ function renderConjGuide(){
     closeBtn.addEventListener("click", function(){ go("verbs"); });
     row.appendChild(closeBtn);
     header.appendChild(row);
+    var personalizedV = cgState.personalizedVerb ? cgFindVerb(cgState.personalizedVerb) : null;
     var sub = el('<div class="cg-header-sub"></div>');
-    sub.textContent = cgState.personalizedVerb ? ("Showing "+cgState.personalizedVerb+" across every tense") : "Tap a tense to see how it’s built";
+    sub.textContent = personalizedV ? ("Showing "+personalizedV.infinitive+" across every tense") : "Tap a tense to see how it’s built";
     header.appendChild(sub);
     wrap.appendChild(header);
 
@@ -31149,31 +31186,67 @@ function renderConjGuide(){
     wrap.appendChild(grid);
 
     var searchWrap = el('<div class="cg-search-wrap"></div>');
-    if(cgState.personalizedVerb){
+    if(personalizedV){
       searchWrap.appendChild(el('<div class="cg-search-label">SHOWING EXAMPLES FOR</div>'));
       var activeRow = el('<div class="cg-search-row cg-active"></div>');
-      activeRow.appendChild(el('<span class="cg-search-verb"></span>')).textContent = cgState.personalizedVerb;
+      activeRow.appendChild(el('<span class="cg-search-verb"></span>')).textContent = personalizedV.infinitive;
       var clearBtn = el('<div class="cg-search-clear">&times;</div>');
       clearBtn.addEventListener("click", function(){ cgState.personalizedVerb = null; cgRenderLanding(); });
       activeRow.appendChild(clearBtn);
       searchWrap.appendChild(activeRow);
     } else {
+      // Mirrors the Verbs page's own search (same VERBS data, same
+      // v.searchTokens live-filter, same findVerbFormMatch exact-form
+      // line) rather than a fixed demo box — French or English, full or
+      // partial, infinitive or a conjugated form.
       searchWrap.appendChild(el('<div class="cg-search-label">OR SEE THESE EXAMPLES FOR A DIFFERENT VERB</div>'));
       var searchRow = el('<div class="cg-search-row"></div>');
-      var input = el('<input type="text" placeholder="e.g. regarder..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">');
-      var goBtn = el('<div class="cg-search-go">Go</div>');
-      function trySearch(){
-        var val = (input.value || "").trim().toLowerCase();
-        if(val==="regarder"){ cgState.personalizedVerb = "regarder"; cgRenderLanding(); }
-        else if(val===""){ /* no-op */ }
-        else { window.alert('Only "regarder" is wired up as a demo verb here — try that, or leave the box empty to keep jouer.'); }
-      }
-      goBtn.addEventListener("click", trySearch);
-      input.addEventListener("keydown", function(e){ if(e.key==="Enter") trySearch(); });
+      var input = el('<input type="text" placeholder="French or English, e.g. jouer, joues, I play..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">');
       searchRow.appendChild(input);
-      searchRow.appendChild(goBtn);
       searchWrap.appendChild(searchRow);
-      searchWrap.appendChild(el('<div class="cg-search-hint">Try &ldquo;regarder&rdquo; — the only other verb wired up in this demo.</div>'));
+      var resultsWrap = el('<div class="cg-search-results"></div>');
+      searchWrap.appendChild(resultsWrap);
+
+      var CG_SEARCH_RESULT_CAP = 6; // this is a quick in-place picker under the tense grid, not the full Verbs browser — capped so a one-letter query doesn't fill the screen
+
+      function pickVerb(v){
+        cgState.personalizedVerb = v.id;
+        cgRenderLanding();
+      }
+
+      function showResults(query){
+        resultsWrap.innerHTML = "";
+        var nq = normText((query || "").trim());
+        if(!nq) return;
+        // Same tier filter and alphabetical order as the Verbs page's own
+        // availableVerbs — otherwise a Foundation-tier pupil could search
+        // their way to a Higher-only verb here even though the Verbs list
+        // itself would hide it from them.
+        var allMatches = VERBS.filter(function(v){
+          return (v.tier==="F" || state.showHigher) && v.searchTokens.some(function(tok){ return tok.indexOf(nq) > -1; });
+        }).sort(function(a,b){
+          return normText(a.bareInfinitive || a.infinitive).localeCompare(normText(b.bareInfinitive || b.infinitive));
+        });
+        if(allMatches.length===0){
+          resultsWrap.appendChild(el('<p class="muted" style="margin:6px 2px;">No verbs match — try a different search, or check the spelling.</p>'));
+          return;
+        }
+        allMatches.slice(0, CG_SEARCH_RESULT_CAP).forEach(function(v){
+          var matchHtml = "";
+          var m = findVerbFormMatch(v, nq);
+          if(m){
+            matchHtml = '<div class="verb-match">'+esc(m.frDisplay)+' - '+esc(m.enGloss)+
+              ' <span class="tense-tag">('+esc(TENSE_LABEL[m.tenseKey])+')</span></div>';
+          }
+          var tile = el('<div class="tile"><div><div>'+esc(capitalize(v.infinitive))+'</div><div class="sub">'+esc(v.english)+'</div>'+matchHtml+'</div><div class="chev">&rsaquo;</div></div>');
+          tile.addEventListener("click", function(){ pickVerb(v); });
+          resultsWrap.appendChild(tile);
+        });
+        if(allMatches.length > CG_SEARCH_RESULT_CAP){
+          resultsWrap.appendChild(el('<p class="muted" style="margin:6px 2px;">'+(allMatches.length-CG_SEARCH_RESULT_CAP)+' more match — keep typing to narrow it down.</p>'));
+        }
+      }
+      input.addEventListener("input", function(e){ showResults(e.target.value); });
     }
     wrap.appendChild(searchWrap);
     wrap.appendChild(el('<div class="cg-footer-note">Showing tenses for your '+(state.showHigher?'Higher':'Foundation')+' tier setting</div>'));
@@ -31199,13 +31272,19 @@ function renderConjGuide(){
   function cgRenderFormula(container, tense, verbId){
     container.innerHTML = "";
     if(verbId==="reflexive_doucher"){ container.appendChild(cgReflexiveFormula(tense)); return; }
+    var vObj = cgFindVerb(verbId);
+    var displayInf = vObj ? vObj.infinitive : verbId; // real spelling (accents etc.) — the id itself is sometimes stripped of accents for lookup purposes
     var r = cgRowsFor(verbId, tense.key);
     var row0 = r.rows[0];
     if(r.type==="stem-ending-fallback"){
       var warn = el('<div class="cg-warning"></div>');
       warn.appendChild(el('<div class="cg-warning-badge">!</div>'));
       var t2 = el('<div class="cg-warning-text"></div>');
-      t2.innerHTML = "<b>"+esc(verbId)+"</b> is irregular in the present tense — it doesn’t follow a stem + ending pattern here. Learn these forms by heart.";
+      if(r.reason==="reflexive"){
+        t2.innerHTML = "<b>"+esc(displayInf)+"</b> is a reflexive verb — reflexive verbs follow their own pattern (see the Reflexive tab's <i>se doucher</i> example for the formula). These are the actual "+esc(tense.name.toLowerCase())+"-tense forms.";
+      } else {
+        t2.innerHTML = "<b>"+esc(displayInf)+"</b> is irregular in the "+esc(tense.name.toLowerCase())+" tense — it doesn’t follow a stem + ending pattern here. Learn these forms by heart.";
+      }
       warn.appendChild(t2);
       container.appendChild(warn);
       return;
@@ -31220,7 +31299,7 @@ function renderConjGuide(){
       frow.appendChild(cgFormulaChip(3, cgROLE.ending, "ENDING"));
       fw.appendChild(frow);
       var ex = el('<div class="cg-example-line"></div>');
-      ex.innerHTML = "e.g. "+esc(verbId)+" → "+esc(cgPronounLabel(0,row0.leadWord))+" "+
+      ex.innerHTML = "e.g. "+esc(displayInf)+" → "+esc(cgPronounLabel(0,row0.leadWord))+" "+
         '<b style="color:'+cgROLE.stem.strong+'">'+esc(row0.stem)+'</b>'+
         '<b style="color:'+cgROLE.ending.strong+'">'+esc(row0.ending)+'</b>'+
         " ("+esc(cgCaption(verbId, tense.key))+")";
@@ -31233,7 +31312,7 @@ function renderConjGuide(){
       frow.appendChild(cgFormulaChip(3, cgROLE[r.xRole], r.xLabel));
       fw.appendChild(frow);
       var ex2 = el('<div class="cg-example-line"></div>');
-      ex2.textContent = "e.g. "+verbId+" → "+cgPronounLabel(0,row0.leadWord)+" "+row0.aux+" "+row0.x+" ("+cgCaption(verbId, tense.key)+")";
+      ex2.textContent = "e.g. "+displayInf+" → "+cgPronounLabel(0,row0.leadWord)+" "+row0.aux+" "+row0.x+" ("+cgCaption(verbId, tense.key)+")";
       fw.appendChild(ex2);
     }
     container.appendChild(fw);
