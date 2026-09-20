@@ -314,19 +314,35 @@
     cursor:pointer; -webkit-tap-highlight-color:transparent; transform-origin:center center;
   }
   .dc-cc-card.dc-cc-preview{filter:blur(6px);}
-  /* Compact Audio mode toggle — a modifier, not a change to .higher-toggle-row
-     itself (that class is shared with the unrelated Foundation/Higher switch
-     elsewhere in the app, which is deliberately full-width). */
-  .dc-audio-toggle{
-    display:flex; align-items:center; gap:8px;
-    background:var(--tint); border:1px solid var(--border); border-radius:10px;
-    padding:5px 10px; margin-bottom:14px; cursor:pointer;
-    align-self:flex-start; width:fit-content;
-  }
-  .dc-audio-toggle b{font-size:var(--fs-subtext); color:var(--purple); font-weight:700;}
-  .dc-audio-toggle .switch{width:32px; height:18px;}
-  .dc-audio-toggle .switch .knob{width:14px; height:14px; top:2px; left:2px;}
-  .dc-audio-toggle .switch.on .knob{left:16px;}
+  /* Digital Flashcards control bar (20 Sep 2026, "one row" round) — direction,
+     Audio mode and the Red/Amber/Green word filter used to be three separately-
+     styled controls (a segmented pair, a switch+label row, another segmented
+     pair) stacked in three different shapes at three different heights. Now
+     one template, repeated: a fixed-height dc-ctrl-slot on top, a static
+     dc-ctrl-caption underneath, laid out as equal-width grid columns
+     (dc-ctrl-bar sets grid-template-columns inline in JS to match however
+     many of the three controls actually apply — 1, 2 or 3) so nothing
+     free-floats or drifts out of line the way the old mixed layout did.
+     Replaces .dc-audio-toggle and the two .segmented rows this screen used
+     to build; .segmented itself is untouched and still used elsewhere
+     (printed wizard steps, login tabs, etc). */
+  .dc-ctrl-bar{display:grid; background:var(--card); border:1px solid var(--border); border-radius:16px; padding:10px 6px 8px; margin-bottom:10px;}
+  .dc-ctrl-col{display:flex; flex-direction:column; align-items:center; gap:6px; border:none; background:none; padding:0;}
+  .dc-ctrl-slot{height:34px; display:flex; align-items:center; justify-content:center; gap:6px;}
+  .dc-ctrl-caption{font-size:var(--fs-eyebrow); font-weight:800; letter-spacing:.04em; color:var(--muted);}
+  .dc-ctrl-caption.on{color:var(--purple);}
+  /* language switch — a real sliding knob between two meaningful states, not
+     an on/off (so it never reuses the green .switch.on fill elsewhere in the
+     app — that would wrongly imply "direction" has an off state). */
+  .dc-lang-track{width:42px; height:24px; border-radius:12px; background:var(--border); position:relative; flex-shrink:0;}
+  .dc-lang-knob{width:20px; height:20px; border-radius:50%; background:var(--purple); position:absolute; top:2px; left:2px; box-shadow:0 1px 2px rgba(20,40,70,.3); transition:left .15s ease;}
+  .dc-lang-track.en .dc-lang-knob{left:20px;}
+  /* audio + word-filter controls both reuse .dc-cc-icon-btn's tint/purple
+     swap convention at a smaller size, rather than inventing a second one */
+  .dc-ctrl-icon{width:34px; height:34px; border-radius:50%; border:none; background:var(--tint); color:var(--purple); display:flex; align-items:center; justify-content:center; padding:0;}
+  .dc-ctrl-icon.on{background:var(--purple); color:#fff;}
+  .dc-filter-dot{width:24px; height:24px; border-radius:50%; border:none; display:flex; align-items:center; justify-content:center; padding:0; flex-shrink:0; opacity:.55;}
+  .dc-filter-dot.on{opacity:1;}
   .dc-cc-badge{position:absolute; top:14px; right:14px; width:16px; height:16px; border-radius:50%; box-shadow:0 0 0 3px var(--card);}
   .dc-front{font-size:24px; color:var(--ink); line-height:1.25; overflow-wrap:break-word;} /* the flashcard word itself — deliberately large, see :root note */
   .dc-front-row{display:flex; align-items:center; justify-content:center; gap:14px; flex-wrap:wrap; row-gap:8px;}
@@ -7788,73 +7804,6 @@ function renderDigitalSession(){
   shell.appendChild(bottomZone);
   app.appendChild(shell);
 
-  if(fcDigital.showDirectionToggle){
-    var dirToggle = el(
-      '<div class="segmented" style="margin-bottom:2px;">'+
-        '<button data-dir="fr2en" class="'+(fcDigital.direction==="fr2en"?"active":"")+'">French '+ARROW_FWD_HTML+' English</button>'+
-        '<button data-dir="en2fr" class="'+(fcDigital.direction==="en2fr"?"active":"")+'">English '+ARROW_FWD_HTML+' French</button>'+
-      '</div>'
-    );
-    dirToggle.querySelectorAll("button").forEach(function(b){
-      b.addEventListener("click", function(){
-        if(fcDigital.direction===b.dataset.dir) return;
-        cancelScheduledDigitalAdvance();
-        fcDigital.direction = b.dataset.dir;
-        fcDigital.revealed = false;
-        fcDigital.curFr = false;
-        fcDigital.animateFromIdx = null;
-        // Audio mode only makes sense reading French -> English; dropping
-        // out of fr2en silently turns it off rather than leaving a toggle
-        // on that no longer does anything.
-        if(fcDigital.direction !== "fr2en"){ fcDigital.audioMode = false; }
-        render();
-      });
-    });
-    topZone.appendChild(dirToggle);
-  }
-
-  // Live "which words" toggle (19 Sep 2026, wizard-shortening round) —
-  // replaces the old wizard "colours" screen for vocab/teacherlist decks.
-  // Unlike the direction toggle, this changes which words are actually in
-  // the deck, so flipping it rebuilds the deck from fcWizard's still-live
-  // theme/teacherListId/count/luckyDip settings (fcWizard is only reset on
-  // exitDigitalSession, so it's still there mid-session) and restarts the
-  // session fresh — there's no sensible way to swap the word set under a
-  // half-finished run, so this is a deliberate "start this deck over with
-  // different words", same as it would be from the wizard.
-  if(fcDigital.showColorsToggle){
-    var colorsToggle = el(
-      '<div class="segmented" style="margin-bottom:2px;">'+
-        '<button data-cg="0" class="'+(!fcWizard.colors.G?"active":"")+'">Red + Amber</button>'+
-        '<button data-cg="1" class="'+(fcWizard.colors.G?"active":"")+'">All words</button>'+
-      '</div>'
-    );
-    colorsToggle.querySelectorAll("button").forEach(function(b){
-      b.addEventListener("click", function(){
-        var wantG = b.dataset.cg==="1";
-        if(!!fcWizard.colors.G === wantG) return;
-        var prevColors = fcWizard.colors;
-        fcWizard.colors = {R:true, A:true, G:wantG};
-        var result = fcBuildChosenItems();
-        if(result.items.length===0){
-          fcWizard.colors = prevColors; // nothing matches the new filter — leave the running deck alone
-          return;
-        }
-        cancelScheduledDigitalAdvance();
-        startDigitalSession(shuffledCopy(result.items), fcDigital.direction, fcDigital.ratable, {
-          showDirectionToggle: fcDigital.showDirectionToggle,
-          showColorsToggle: fcDigital.showColorsToggle,
-          headerTitle: fcDigital.headerTitle
-        }); // startDigitalSession() already re-renders (fcRerender()) — no extra render() call needed here
-      });
-    });
-    topZone.appendChild(colorsToggle);
-  }
-
-  if(fcDigital.lap>1 && fcDigital.ratable){
-    topZone.appendChild(el('<div class="banner">&#128257; Round '+fcDigital.lap+' &mdash; focusing on red &amp; amber words, with green words mixed in.</div>'));
-  }
-
   var items = fcDigital.items;
   var idx = fcDigital.idx;
   var item = items[idx];
@@ -7887,16 +7836,105 @@ function renderDigitalSession(){
       (fcDigital.ratable ? '<span>'+ratedCount+' rated</span>' : '')+'</div>'
     ));
   }
+  if(fcDigital.lap>1 && fcDigital.ratable){
+    topZone.appendChild(el('<div class="banner">&#128257; Round '+fcDigital.lap+' &mdash; focusing on red &amp; amber words, with green words mixed in.</div>'));
+  }
+
+  // Control bar (20 Sep 2026, "one row" round) — up to three controls
+  // (direction, Audio mode, the R/A/G word filter), each built as the same
+  // dc-ctrl-col template (a fixed-height dc-ctrl-slot, a dc-ctrl-caption
+  // underneath) and laid out as equal grid columns. Only the controls that
+  // actually apply to this session are included, so a Daily Streak/
+  // Independent Study session (direction + maybe audio, never the word
+  // filter) gets 1-2 columns and a wizard-launched vocab/teacherlist session
+  // gets up to 3 — the template and column width stay identical either way.
+  var ctrlCols = [];
+
+  if(fcDigital.showDirectionToggle){
+    var langCol = el(
+      '<button class="dc-ctrl-col" type="button" aria-label="Switch direction, currently '+
+        (frontIsFr ? 'French to English' : 'English to French')+'">'+
+        '<div class="dc-ctrl-slot"><div class="dc-lang-track'+(frontIsFr?'':' en')+'"><div class="dc-lang-knob"></div></div></div>'+
+        '<div class="dc-ctrl-caption on">'+(frontIsFr ? 'FR' : 'EN')+' '+ARROW_FWD_HTML+' '+(frontIsFr ? 'EN' : 'FR')+'</div>'+
+      '</button>'
+    );
+    langCol.addEventListener("click", function(){
+      cancelScheduledDigitalAdvance();
+      fcDigital.direction = frontIsFr ? "en2fr" : "fr2en";
+      fcDigital.revealed = false;
+      fcDigital.curFr = false;
+      fcDigital.animateFromIdx = null;
+      // Audio mode only makes sense reading French -> English; dropping out
+      // of fr2en silently turns it off rather than leaving a toggle on that
+      // no longer does anything (and the control disappears, below).
+      if(fcDigital.direction !== "fr2en"){ fcDigital.audioMode = false; }
+      render();
+    });
+    ctrlCols.push(langCol);
+  }
 
   if(audioEligible){
-    var toggleRow = el(
-      '<div class="dc-audio-toggle" id="dcAudioToggleRow">'+
-        '<b>&#128266; Audio mode</b>'+
-        '<div class="switch'+(fcDigital.audioMode?' on':'')+'"><div class="knob"></div></div>'+
+    var audioCol = el(
+      '<div class="dc-ctrl-col">'+
+        '<div class="dc-ctrl-slot"><button type="button" class="dc-ctrl-icon'+(fcDigital.audioMode?' on':'')+'" aria-label="Audio mode">'+
+          '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H3v6h3l5 4V5z"/><path d="M15.5 8.5a5 5 0 010 7"/></svg>'+
+        '</button></div>'+
+        '<div class="dc-ctrl-caption'+(fcDigital.audioMode?' on':'')+'">AUDIO</div>'+
       '</div>'
     );
-    toggleRow.addEventListener("click", toggleAudioMode);
-    topZone.appendChild(toggleRow);
+    audioCol.querySelector("button").addEventListener("click", toggleAudioMode);
+    ctrlCols.push(audioCol);
+  }
+
+  // Live word filter (started as a binary Red+Amber/All-words toggle in the
+  // wizard-shortening round, generalised here to three independent dots —
+  // fcVocabPool()/fcTeacherListPool() already read fcWizard.colors per
+  // rating letter, so this only ever needed a UI that could express it).
+  // Changes which words are actually in the deck, so flipping any dot
+  // rebuilds it from fcWizard's still-live theme/teacherListId/count/
+  // luckyDip settings and restarts the session — same as the direction
+  // toggle being purely cosmetic vs this one changing the deck itself, per
+  // the original wizard-shortening round's reasoning.
+  if(fcDigital.showColorsToggle){
+    var dotsHtml = '';
+    [["R","red","Still learning"],["A","amber","Getting there"],["G","green","Confident"]].forEach(function(c){
+      var active = !!fcWizard.colors[c[0]];
+      dotsHtml += '<button type="button" class="dc-filter-dot'+(active?' on':'')+'" data-c="'+c[0]+
+        '" style="background:var(--'+c[1]+(active?'':'-pastel')+');" aria-label="'+c[2]+(active?', included':', hidden — tap to include')+'">'+
+        (active ? '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>' : '')+
+      '</button>';
+    });
+    var filterCol = el('<div class="dc-ctrl-col"><div class="dc-ctrl-slot">'+dotsHtml+'</div><div class="dc-ctrl-caption on">WORDS</div></div>');
+    filterCol.querySelectorAll("button").forEach(function(btn){
+      btn.addEventListener("click", function(){
+        var key = btn.dataset.c;
+        var nextVal = !fcWizard.colors[key];
+        if(!nextVal && !["R","A","G"].some(function(k){ return k!==key && fcWizard.colors[k]; })){
+          return; // never let every dot switch off at once — nothing left to test
+        }
+        var prevColors = fcWizard.colors;
+        fcWizard.colors = {R:fcWizard.colors.R, A:fcWizard.colors.A, G:fcWizard.colors.G};
+        fcWizard.colors[key] = nextVal;
+        var result = fcBuildChosenItems();
+        if(result.items.length===0){
+          fcWizard.colors = prevColors; // nothing matches the new filter — leave the running deck alone
+          return;
+        }
+        cancelScheduledDigitalAdvance();
+        startDigitalSession(shuffledCopy(result.items), fcDigital.direction, fcDigital.ratable, {
+          showDirectionToggle: fcDigital.showDirectionToggle,
+          showColorsToggle: fcDigital.showColorsToggle,
+          headerTitle: fcDigital.headerTitle
+        }); // startDigitalSession() already re-renders (fcRerender()) — no extra render() call needed here
+      });
+    });
+    ctrlCols.push(filterCol);
+  }
+
+  if(ctrlCols.length){
+    var ctrlBar = el('<div class="dc-ctrl-bar" style="grid-template-columns:repeat('+ctrlCols.length+',1fr);"></div>');
+    ctrlCols.forEach(function(c){ ctrlBar.appendChild(c); });
+    topZone.appendChild(ctrlBar);
     if(fcDigital.audioMode && !fcDigital.revealed){
       topZone.appendChild(el('<div class="dc-audio-hint">Listen, then tap &#128065; or the card itself to see the word.</div>'));
     }
