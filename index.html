@@ -128,6 +128,12 @@
   .tile:active{background:var(--tint);}
   .tile.is-past{opacity:.55;} /* Independent Study: deadline has passed — still fully clickable, just visually de-emphasised */
   .tile .sub{font-size:var(--fs-subtext); color:var(--muted); font-weight:var(--fw-subtext); margin-top:3px;}
+  /* Verb search result tile: shown only when the search text exactly matches
+     a specific conjugated form (French or English) of this verb — gives an
+     at-a-glance translation of what was searched before tapping through to
+     the full conjugation table. See findVerbFormMatch() in renderVerbs(). */
+  .tile .verb-match{font-size:var(--fs-subtext); color:var(--muted); font-style:italic; margin-top:3px; line-height:1.3;}
+  .tile .verb-match .tense-tag{font-style:normal;}
   .tile .chev{color:var(--purple); font-size:20px;}
   /* Grouped-list pattern for a set of same-kind rows nested one level below
      a category (e.g. the AQA units under "AQA GCSE Vocabulary — by unit") —
@@ -30476,6 +30482,74 @@ var VERB_INFO_HTML =
   '<p><b>Reading questions and translations:</b> If you recognise that there is a verb (because you see a pronoun like \'elle\'), but are unsure what the verb means, you can type the full conjugated verb (e.g. <i>elle lit</i>) into the search bar to help you to understand the verb.</p>'+
   '<p>If you search for a verb, but it does not give you a result, then the verb is not included in the AQA vocabulary list. In this case, you may want to search on Google instead.</p>';
 
+// ---- exact conjugated-form match, for the search-result tile ----
+// When a search resolves to one specific conjugated form (French or
+// English), the result tile shows that form and its translation inline —
+// e.g. searching "je jouais" or "I used to play" both surface
+// "je jouais – I was playing / I used to play (imperfect)" under Jouer,
+// so the pupil can see what they searched for before tapping through.
+// Deliberately exact-match only (normText equality, not substring): while
+// the pupil is still typing a partial form, showing no extra line beats
+// showing a guess that changes on every keystroke.
+var TENSE_LABEL = {
+  present: "present", perfect: "perfect tense", nearFuture: "near future",
+  imperfect: "imperfect", futureSimple: "future tense", conditional: "conditional"
+};
+// Same tense→available-English-variants shape buildVerbSearchTokens() already
+// indexes (including the "alt" meaning for verbs like faire, and every key
+// of englishForms() for imperfect regardless of v.stative) — kept in sync
+// with that function rather than re-deriving a smaller set, so anything
+// searchable as a conjugated form here is also findable in the list filter.
+function englishVariantsForTense(f, tenseKey, v, person){
+  var subj = ENGLISH_PRONOUN[person], bucket = engBucket(person);
+  if(tenseKey==="present"){
+    var arr = [f.presentSimple, f.presentProgressive];
+    if(v.engAltBase){
+      arr.push(subj+" "+(bucket==="3sg" ? v.engAltThird : v.engAltBase));
+      arr.push(subj+" "+beWord(bucket,"present")+" "+v.engAltGerund);
+    }
+    return arr;
+  }
+  if(tenseKey==="perfect"){
+    var arr = [f.pastSimple, f.perfectHave];
+    if(v.engAltBase) arr.push(subj+" "+v.engAltPast);
+    return arr;
+  }
+  if(tenseKey==="nearFuture") return [f.nearFuture];
+  if(tenseKey==="imperfect") return [f.imperfectProgressive, f.imperfectHabitual, f.imperfectStative];
+  if(tenseKey==="futureSimple") return [f.futureSimple];
+  if(tenseKey==="conditional") return [f.conditional];
+  return [];
+}
+// tenseOrder is also the tie-break priority when a query happens to match
+// more than one tense/person for the same verb (e.g. a form that's
+// identical across two tenses) — first match wins.
+var VERB_MATCH_TENSE_ORDER = ["present","perfect","nearFuture","imperfect","futureSimple","conditional"];
+function findVerbFormMatch(v, nq){
+  if(!nq) return null;
+  if(nq===normText(v.infinitive) || (v.bareInfinitive && nq===normText(v.bareInfinitive))) return null;
+  for(var t=0; t<VERB_MATCH_TENSE_ORDER.length; t++){
+    var tenseKey = VERB_MATCH_TENSE_ORDER[t];
+    if((tenseKey==="imperfect" || tenseKey==="futureSimple" || tenseKey==="conditional") && !state.showHigher) continue;
+    for(var p=0; p<PERSONS.length; p++){
+      var person = PERSONS[p];
+      var frBare = frenchBareForm(v, tenseKey, person);
+      if(!frBare) continue;
+      var frDisplay = displayForm(person, frBare);
+      var f = englishForms(v, person);
+      var candidates = [frBare, frDisplay].concat(englishVariantsForTense(f, tenseKey, v, person));
+      var isMatch = false;
+      for(var c=0; c<candidates.length; c++){
+        if(candidates[c] && normText(candidates[c])===nq){ isMatch = true; break; }
+      }
+      if(isMatch){
+        return { tenseKey: tenseKey, person: person, frDisplay: frDisplay, enGloss: englishGloss(v, tenseKey, person) };
+      }
+    }
+  }
+  return null;
+}
+
 function renderVerbs(){
   titleEl.textContent = "Verb Conjugations";
   setInfoButton(VERB_INFO_HTML);
@@ -30602,8 +30676,8 @@ function renderVerbs(){
     bodyWrap.innerHTML = "";
     if(azIndexEl) azIndexEl.style.display = filterQuery ? "none" : "";
     var list = availableVerbs;
-    if(filterQuery){
-      var nq = normText(filterQuery);
+    var nq = filterQuery ? normText(filterQuery) : "";
+    if(nq){
       list = availableVerbs.filter(function(v){
         return v.searchTokens.some(function(tok){ return tok.indexOf(nq) > -1; });
       });
@@ -30613,7 +30687,15 @@ function renderVerbs(){
       return;
     }
     list.forEach(function(v){
-      var tile = el('<div class="tile"><div><div>'+esc(capitalize(v.infinitive))+'</div><div class="sub">'+esc(v.english)+'</div></div><div class="chev">&rsaquo;</div></div>');
+      var matchHtml = "";
+      if(nq){
+        var match = findVerbFormMatch(v, nq);
+        if(match){
+          matchHtml = '<div class="verb-match">'+esc(match.frDisplay)+' - '+esc(match.enGloss)+
+            ' <span class="tense-tag">('+esc(TENSE_LABEL[match.tenseKey])+')</span></div>';
+        }
+      }
+      var tile = el('<div class="tile"><div><div>'+esc(capitalize(v.infinitive))+'</div><div class="sub">'+esc(v.english)+'</div>'+matchHtml+'</div><div class="chev">&rsaquo;</div></div>');
       tile.dataset.az = verbLetter(v);
       tile.addEventListener("click", function(){ showDetail(v); });
       bodyWrap.appendChild(tile);
